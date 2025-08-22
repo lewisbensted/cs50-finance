@@ -1,6 +1,11 @@
-import sqlite3
-
-from flask import Blueprint, render_template, request, session, jsonify, current_app
+from flask import (
+    Blueprint,
+    render_template,
+    request,
+    session,
+    jsonify,
+    current_app,
+)
 from errors import BadRequestError, NotFoundError
 from db import fetch_holdings, get_db
 from helpers import login_required, lookup
@@ -19,7 +24,6 @@ def fetch_prices():
 
     for symbol in symbols:
         quote = lookup(symbol)
-        print(quote)
         if quote:
             updated_prices.append(quote)
     if len(symbols) == 1 and len(updated_prices) == 0:
@@ -33,7 +37,6 @@ def fetch_prices():
 def index():
     try:
         holdings = fetch_holdings(session["user_id"])
-        print(holdings)
     except Exception as error:
         current_app.logger.error(error)
         holdings = None
@@ -55,29 +58,34 @@ def holdings():
 @stocks_bp.route("/balance")
 @login_required
 def fetch_balance():
-        db = get_db()
-        cursor = db.cursor()
-        cursor.execute("SELECT cash FROM users WHERE id = ?", (session["user_id"],))
-        row = cursor.fetchone()
-        if not row:
-            return ({"error": "User not found"}), 404
-        return jsonify(row["cash"])
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT cash FROM users WHERE id = ?", (session["user_id"],))
+    row = cursor.fetchone()
+    if not row:
+        return ({"error": "User not found"}), 404
+    return jsonify(row["cash"])
 
 
-# @stocks_bp.route("/history")
-# @login_required
-# def history():
-#     try:
-#         transactions = db.execute(
-#             'SELECT symbol, price, shares, ROUND(shares * price, 2) AS value, transaction_type, timestamp  FROM transactions WHERE user_id = ? ORDER BY timestamp DESC;', session['user_id'])
-#         ts = []
-#         for t in transactions:
-#             ts.append({'symbol': t['symbol'], 'shares': t['shares'], 'price':
-#                 t['price'])
-#         return render_template('history.html', transactions=ts)
-#     except Exception as e:
-#         print(e)
-#         return ({"error": "Unexpected error"}), 500
+@stocks_bp.route("/history")
+@login_required
+def history():
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            "SELECT "
+            "company_name, symbol, price, shares, transaction_type, "
+            "timestamp, transaction_type, ROUND(shares * price, 2) "
+            "AS value FROM transactions "
+            "WHERE user_id = ? ORDER BY timestamp DESC;",
+            (session["user_id"],),
+        )
+        transactions = cursor.fetchall()
+        return render_template("history.html", transactions=transactions)
+    except Exception as e:
+        print(e)
+        return ({"error": "Unexpected error"}), 500
 
 
 @stocks_bp.route("/search")
@@ -95,7 +103,7 @@ def buy():
         return jsonify({"error": "Missing request body"}), 400
 
     for purchase in data:
-        if not purchase["symbol"]:
+        if "symbol" not in purchase or not purchase["symbol"]:
             return (
                 jsonify({"error": "Incorrect data format - symbol not provided"}),
                 400,
@@ -109,7 +117,9 @@ def buy():
             shares = int(purchase.get("shares"))
             if shares < 1:
                 return (
-                    jsonify({"error": "Incorrect data format - shares must positive"}),
+                    jsonify(
+                        {"error": "Incorrect data format - shares must be positive"}
+                    ),
                     400,
                 )
             purchase["shares"] = shares
@@ -136,23 +146,33 @@ def buy():
             if not info:
                 raise NotFoundError(f"Symbol not found: {symbol}")
             price = info["price"]
+            company_name = info["name"]
             cash -= price * shares
             if cash < 0:
                 raise BadRequestError("Insufficient funds")
             cursor.execute(
-                "INSERT INTO transactions (user_id, symbol, shares, price, transaction_type) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (session["user_id"], symbol, shares, price, "buy"),
+                "INSERT INTO transactions "
+                "(user_id, symbol, company_name,shares, price, transaction_type) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    session["user_id"],
+                    symbol,
+                    company_name,
+                    shares,
+                    price,
+                    "buy",
+                ),
             )
             cursor.execute(
-                "INSERT INTO holdings (user_id, symbol, shares, name) "
+                "INSERT INTO holdings (user_id, symbol, shares, company_name) "
                 "VALUES (?, ?, ?, ?) "
                 "ON CONFLICT(user_id, symbol) DO UPDATE "
                 "SET shares = shares + excluded.shares;",
-                (session["user_id"], symbol, shares, info["name"]),
+                (session["user_id"], symbol, shares, company_name),
             )
         cursor.execute(
-            "UPDATE users SET cash = ? WHERE id = ?", (cash, session["user_id"])
+            "UPDATE users SET cash = ? WHERE id = ?",
+            (cash, session["user_id"]),
         )
         db.commit()
         return jsonify({"updated_balance": cash}), 200
@@ -178,7 +198,7 @@ def sell():
         return jsonify({"error": "Missing request body"}), 400
 
     for sale in data:
-        if not sale["symbol"]:
+        if "symbol" not in sale or not sale["symbol"]:
             return (
                 jsonify({"error": "Incorrect data format - symbol not provided"}),
                 400,
@@ -220,6 +240,7 @@ def sell():
             if not info:
                 raise NotFoundError(f"Symbol not found: {symbol}")
             price = info["price"]
+            company_name = info["name"]
 
             cursor.execute(
                 "SELECT shares FROM holdings WHERE user_id = ? AND symbol = ?",
@@ -235,12 +256,21 @@ def sell():
                 raise BadRequestError(f"Insufficient shares: {symbol}")
 
             cursor.execute(
-                "INSERT INTO transactions (user_id, symbol, shares, price, transaction_type) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (session["user_id"], symbol, shares, price, "sell"),
+                "INSERT INTO transactions "
+                "(user_id, symbol, shares, price, transaction_type, company_name) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    session["user_id"],
+                    symbol,
+                    shares,
+                    price,
+                    "sell",
+                    company_name,
+                ),
             )
             cursor.execute(
-                "UPDATE holdings SET shares = shares - ? WHERE user_id = ? AND symbol = ?",
+                "UPDATE holdings "
+                "SET shares = shares - ? WHERE user_id = ? AND symbol = ?",
                 (shares, session["user_id"], symbol),
             )
             cursor.execute(
@@ -248,7 +278,8 @@ def sell():
                 (session["user_id"], symbol),
             )
         cursor.execute(
-            "UPDATE users SET cash = ? WHERE id = ?", (cash, session["user_id"])
+            "UPDATE users SET cash = ? WHERE id = ?",
+            (cash, session["user_id"]),
         )
         db.commit()
         return jsonify({"updated_balance": cash}), 200
@@ -263,4 +294,3 @@ def sell():
         db.rollback()
         print(e)
         return jsonify({"error": "Unexpected error"}), 500
-   

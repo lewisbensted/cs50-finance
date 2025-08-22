@@ -1,505 +1,506 @@
-{% extends "layout.html" %}
+{% extends "layout.html" %} {% block title %} Holdings {% endblock %} {% block main %}
+<h1>Holdings</h1>
+<br />
+{% if holdings is not none %}
+<table>
+	<thead>
+		<tr>
+			<th>Company Name</th>
+			<th>Symbol</th>
+			<th>Shares</th>
+			<th>Price</th>
+			<th>Value</th>
+			<th>Sell</th>
+			<th>Buy</th>
+		</tr>
+	</thead>
+	<tbody>
+		{%for holding in holdings %}
+		<tr class="holding">
+			<td>{{holding.company_name}}</td>
+			<td class="symbol" data-value="{{holding.symbol}}">{{holding.symbol}}</td>
+			<td class="current-shares" data-value="{{holding.shares}}">{{holding.shares}}</td>
+			<td class="price">
+				<div class="spinner-border spinner-border-sm text-primary" role="status">
+					<span class="visually-hidden">Loading...</span>
+				</div>
+			</td>
+			<td class="value">
+				<div class="spinner-border spinner-border-sm text-primary" role="status">
+					<span class="visually-hidden">Loading...</span>
+				</div>
+			</td>
+			<td>
+				<input
+					type="number"
+					min="1"
+					max="{{ holding.shares }}"
+					class="sell-input"
+					form="sell-form"
+					required
+					disabled
+				/>
+			</td>
+			<td>
+				<input type="number" min="1" class="buy-input" form="buy-form" required disabled />
+			</td>
+		</tr>
+		{% endfor %}
+	</tbody>
+	<tfoot>
+		<tr>
+			<td></td>
+			<td></td>
+			<td></td>
+			<td class="footer">Total</td>
+			<td id="total">
+				<div class="spinner-border spinner-border-sm text-primary" role="status">
+					<span class="visually-hidden">Loading...</span>
+				</div>
+			</td>
+			<td class="sell-total"></td>
+			<td class="buy-total"></td>
+		</tr>
+		<tr>
+			<td></td>
+			<td></td>
+			<td></td>
+			<td class="footer">Balance</td>
+			<td id="balance">
+				<div class="spinner-border spinner-border-sm text-primary" role="status">
+					<span class="visually-hidden">Loading...</span>
+				</div>
+			</td>
+			<td>
+				<form class="sell-form" style="display: flex">
+					<button type="submit" class="btn btn-primary sell-button" disabled>Sell</button>
+					<div class="d-flex justify-content-center sell-spinner" style="display: none">
+						<div class="spinner-border text-primary" role="status">
+							<span class="visually-hidden">Loading...</span>
+						</div>
+					</div>
+				</form>
+			</td>
+			<td>
+				<form class="buy-form" style="display: flex">
+					<button type="submit" class="btn btn-primary buy-button" disabled>Buy</button>
+					<div class="d-flex justify-content-center buy-spinner" style="display: none">
+						<div class="spinner-border text-primary" role="status">
+							<span class="visually-hidden">Loading...</span>
+						</div>
+					</div>
+				</form>
+			</td>
+		</tr>
+	</tfoot>
+</table>
+<span id="message"></span>
+{% else %}
+<span>Error loading holdings</span>
+{% endif %}
 
-{% block title %}
-    Holdings
-{% endblock %}
+<script>
+	const message = document.getElementById("message");
 
-{% block main %}
-    <h1>Holdings</h1><br />
-    {% if holdings is not none %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Symbol</th>
-                    <th>Shares</th>
-                    <th>Price</th>
-                    <th>Value</th>
-                    <th>Sell</th>
-                    <th>Buy</th>
-                </tr>
-            </thead>
-            <tbody>
+	const getBalance = () => JSON.parse(localStorage.getItem("balance"));
+	const setBalance = (balance) => localStorage.setItem("balance", balance);
 
-                {%for holding in holdings %}
-                    <tr class='holding'>
-                        <td>{{holding.name}}</td>
-                        <td class='symbol' data-value={{holding.symbol}}>{{holding.symbol}}</td>
-                        <td class='current-shares' data-value={{holding.shares}}>{{holding.shares}}</td>
-                        <td class='price'>
-                            <div class="spinner-border spinner-border-sm text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                        </td>
-                        <td class='value'>
-                            <div class="spinner-border spinner-border-sm text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                        </td>
-                        <td>
-                            <input type="number" min="1" max="{{ holding.shares }}" class='sell-input' form='sell-form' required disabled>
-                        </td>
-                        <td>
-                            <input type="number" min="1" class='buy-input' form='buy-form' required disabled>
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td class='footer'>Total</td>
-                    <td id='total'>
-                        <div class="spinner-border spinner-border-sm text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                    </td>
-                    <td class='sell-total'></td>
-                    <td class='buy-total'></td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td class='footer'>Balance</td>
-                    <td id='balance'>
-                        <div class="spinner-border spinner-border-sm text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                    </td>
-                    <td>
-                        <form class='sell-form' style='display:flex'>
-                            <button type="submit" class='btn btn-primary sell-button' disabled>Sell</button>
-                            <div class="d-flex justify-content-center sell-spinner" style="display:none">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">Loading...</span>
-                                </div>
-                            </div>
-                        </form>
-                    </td>
-                    <td>
-                        <form class='buy-form' style='display:flex'>
-                            <button type="submit" class="btn btn-primary buy-button" disabled>Buy</button>
-                            <div class="d-flex justify-content-center buy-spinner" style="display:none">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">Loading...</span>
-                                </div>
-                            </div>
-                        </form>
-                    </td>
-                </tr>
+	const balanceCell = document.getElementById("balance");
+	const totalCell = document.getElementById("total");
+	balanceCell.textContent = `$${getBalance().toFixed(2)}`;
 
-            </tfoot>
-        </table>
-        <span id='message'></span>
-    {% else %}
-        <span>Error loading holdings</span>
-    {% endif %}
+	const buySpinner = document.querySelector(".buy-spinner");
+	const buyButton = document.querySelector(".buy-button");
 
+	const sellSpinner = document.querySelector(".sell-spinner");
+	const sellButton = document.querySelector(".sell-button");
 
-    <script>
-        const message = document.getElementById('message')
+	const buyForm = document.querySelector(".buy-form");
+	const sellForm = document.querySelector(".sell-form");
 
-        const getBalance = () => JSON.parse(localStorage.getItem('balance'))
-        const setBalance = (balance) => localStorage.setItem('balance', balance)
+	const buyTotal = document.querySelector(".buy-total");
+	const sellTotal = document.querySelector(".sell-total");
 
-        const balanceCell = document.getElementById('balance')
-        const totalCell = document.getElementById('total')
-        balanceCell.textContent = `$${getBalance().toFixed(2)}`
+	const buyInputs = document.querySelectorAll(".buy-input");
+	const sellInputs = document.querySelectorAll(".sell-input");
 
-        const buySpinner = document.querySelector('.buy-spinner')
-        const buyButton = document.querySelector('.buy-button')
+	const symbols = [];
+	let priceIntervalId;
+	let transactionInProgress;
 
-        const sellSpinner = document.querySelector('.sell-spinner')
-        const sellButton = document.querySelector('.sell-button')
+	const holdings = document.querySelectorAll(".holding");
+	holdings.forEach((el) => {
+		const symbolCell = el.querySelector(".symbol");
+		symbols.push(symbolCell.textContent);
+	});
 
-        const buyForm = document.querySelector('.buy-form')
-        const sellForm = document.querySelector('.sell-form')
+	const calculateTotal = () => {
+		let total = 0;
+		holdings.forEach((holding) => {
+			total += Number(holding.querySelector(".value").dataset.value);
+		});
+		return Number(total.toFixed(2));
+	};
 
-        const buyTotal = document.querySelector('.buy-total')
-        const sellTotal = document.querySelector('.sell-total')
+	const url = `/prices?symbols=${symbols.join(",")}`;
 
-        const buyInputs = document.querySelectorAll('.buy-input')
-        const sellInputs = document.querySelectorAll('.sell-input')
+	const fetchPrices = async () => {
+		const res = await fetch(url);
+		const data = await res.json().catch((error) => console.error(error));
+		if (!res.ok) {
+			throw new Error(data && data.error ? data.error : `Error ${res.status}: ${res.statusText}`);
+		}
+		if (data.length !== symbols.length) throw new Error("Missing data");
 
-        const symbols = []
-        let priceIntervalId
+		return data;
+	};
 
-        const holdings = document.querySelectorAll('.holding')
-        holdings.forEach((el) => {
-            const symbolCell = el.querySelector('.symbol')
-            symbols.push(symbolCell.textContent)
-        })
+	const updatePrices = async (isFirstFetch = false) => {
+		try {
+			let updated = 0;
+			const prices = await fetchPrices();
 
-        const calculateTotal = () => {
-            let total = 0
-            holdings.forEach((holding) => {
-                total += Number(holding.querySelector('.value').dataset.value)
-            })
-            return Number(total.toFixed(2))
-        }
+			holdings.forEach((holding) => {
+				const priceCell = holding.querySelector(".price");
+				const valueCell = holding.querySelector(".value");
+				const sharesCell = holding.querySelector(".current-shares");
+				const share = prices.find((el) => el.symbol == holding.querySelector(".symbol").textContent);
 
-        const url = `/prices?symbols=${symbols.join(',')}`;
+				const buyInput = holding.querySelector(".buy-input");
+				const sellInput = holding.querySelector(".sell-input");
 
-        const fetchPrices = async () => {
-            const res = await fetch(url)
-            const data = await res.json().catch((error) => console.error(error));
-            if (!res.ok) {
-                throw new Error((data && data.error) ? data.error : `Error ${res.status}: ${res.statusText}`);
-            }
-            if (data.length !== symbols.length) throw new Error('Missing data');
+				if (share && share.price != null) {
+					const price = Number(share.price);
+					const shares = Number(sharesCell.dataset.value);
+					const value = price * shares;
 
-            return data;
-        }
+					priceCell.style.color = "";
+					priceCell.dataset.value = price;
+					priceCell.textContent = `$${price.toFixed(2)}`;
 
-        const updatePrices = async (isFirstFetch = false) => {
-            try {
-                let updated = 0
-                const prices = await fetchPrices();
+					valueCell.style.color = "";
+					valueCell.dataset.value = value;
+					valueCell.textContent = `$${value.toFixed(2)}`;
 
-                holdings.forEach((holding) => {
-                    const priceCell = holding.querySelector('.price');
-                    const valueCell = holding.querySelector('.value');
-                    const sharesCell = holding.querySelector('.current-shares');
-                    const share = prices.find(
-                        (el) => el.symbol == holding.querySelector('.symbol').textContent
-                    );
+					if (shares > 0) {
+						if (!transactionInProgress) sellInput.disabled = false;
+					}
 
-                    const buyInput = holding.querySelector('.buy-input');
-                    const sellInput = holding.querySelector('.sell-input');
+					const availableShares = Math.floor(getBalance() / price);
+					buyInput.max = availableShares;
+					if (availableShares > 0) {
+						if (!transactionInProgress) buyInput.disabled = false;
+					} else {
+						if (!transactionInProgress) buyInput.disabled = true;
+					}
+					updated++;
+				} else {
+					if (isFirstFetch) {
+						priceCell.textContent = `$--`;
+						valueCell.textContent = `$--`;
+					}
+					priceCell.style.color = "red";
+					valueCell.style.color = "red";
+					holding.querySelector(".sell-input").disabled = true;
+					holding.querySelector(".buy-input").disabled = true;
+				}
+			});
+			totalCell.style.color = updated === holdings.length ? "" : "red";
+			const total = calculateTotal();
+			totalCell.textContent = isNaN(total) ? `$--` : `$${total.toFixed(2)}`;
+			if (isFirstFetch) {
+				sellButton.disabled = false;
+				buyButton.disabled = false;
+			}
+		} catch (error) {
+			console.error(error);
+			totalCell.style.color = "red";
+			buyButton.disabled = sellButton.disabled = true;
+			holdings.forEach((holding) => {
+				const priceCell = holding.querySelector(".price");
+				const valueCell = holding.querySelector(".value");
+				holding.querySelector(".sell-input").disabled = holding.querySelector(".buy-input").disabled = true;
+				priceCell.style.color = valueCell.style.color = "red";
+				if (isFirstFetch) {
+					priceCell.textContent = valueCell.textContent = totalCell.textContent = `$--`;
+				}
+			});
+		}
+	};
 
+	if (symbols.length) {
+		updatePrices(true).then(() => {
+			sellFormListener();
+			buyFormListener();
+			if (priceIntervalId) clearInterval(priceIntervalId);
+			priceIntervalId = setInterval(() => {
+				updatePrices()
+					.then(() => {
+						if (!transactionInProgress) {
+							if (buyTotal.textContent) buyInputs[0].dispatchEvent(new Event("input"));
+							if (sellTotal.textContent) sellInputs[0].dispatchEvent(new Event("input"));
+						}
+					})
+					.catch((error) => console.error(error));
+			}, 5000);
+		});
+	} else {
+		document.querySelector("table").style.display = "none";
+		message.innerHTML = 'No holdings to display - go to the <a href="/search">Search</a> page to start trading.';
+	}
 
-                    if (share && share.price != null) {
-                        const price = Number(share.price);
-                        const shares = Number(sharesCell.dataset.value);
-                        const value = price * shares;
+	const sellFormListener = () => {
+		sellForm.addEventListener("submit", async (e) => {
+			e.preventDefault();
+			if (transactionInProgress) return
+			transactionInProgress = true;
+			const sales = [];
+			const holdings = document.querySelectorAll(".holding");
+			message.textContent = "";
+			let invalidQuantity = false;
+			let invalidInput = false;
 
-                        priceCell.style.color = '';
-                        priceCell.dataset.value = price;
-                        priceCell.textContent = `$${price.toFixed(2)}`;
+			for (const holding of holdings) {
+				if (invalidQuantity || invalidInput) break;
 
-                        valueCell.style.color = '';
-                        valueCell.dataset.value = value;
-                        valueCell.textContent = `$${value.toFixed(2)}`;
+				const currentShares = Number(holding.querySelector(".current-shares").dataset.value);
+				const quantity = Number(holding.querySelector(".sell-input").value);
+				const symbol = holding.querySelector(".symbol").dataset.value;
 
-                        if (shares > 0) {
-                            sellInput.disabled = false
-                        }
+				if (quantity > currentShares) {
+					invalidQuantity = true;
+					break;
+				} else if (quantity < 0 || !Number.isInteger(quantity)) {
+					invalidInput = true;
+					break;
+				}
 
-                        const availableShares = Math.floor(getBalance() / price)
-                        if (availableShares > 0) {
-                            buyInput.disabled = false
-                            buyInput.max = availableShares
-                        } else {
-                            buyInput.disabled = true
-                        }
-                        updated++
+				if (quantity > 0) {
+					sales.push({
+						symbol: symbol,
+						shares: quantity,
+					});
+				}
+			}
 
-                    } else {
-                        if (isFirstFetch) {
-                            priceCell.textContent = `$--`
-                            valueCell.textContent = `$--`
-                        }
-                        priceCell.style.color = 'red'
-                        valueCell.style.color = 'red'
-                        priceCell.closest('.holding').querySelector('.sell-input').disabled = true
-                        priceCell.closest('.holding').querySelector('.buy-input').disabled = true
-                    }
-                })
-                totalCell.style.color = updated === holdings.length ? '' : 'red'
-                const total = calculateTotal()
-                totalCell.textContent = isNaN(total) ? `$--` : `$${total}`
-                if (isFirstFetch) {
-                    sellButton.disabled = false
-                    buyButton.disabled = false
-                }
-            } catch (error) {
-                console.error(error)
-                totalCell.style.color = 'red'
-                buyButton.disabled = sellButton.disabled = true
-                holdings.forEach((holding) => {
-                    const priceCell = holding.querySelector('.price')
-                    const valueCell = holding.querySelector('.value')
-                    holding.querySelector('.sell-input').disabled = holding.querySelector('.buy-input').disabled = true
-                    priceCell.style.color = 'red'
-                    valueCell.style.color = 'red'
-                    if (isFirstFetch) {
-                        priceCell.textContent = `$--`
-                        valueCell.textContent = `$--`
-                        totalCell.textContent = `$--`
-                    }
-                })
-            }
-        }
+			if (invalidQuantity) {
+				message.textContent = "Could not complete trade - insufficient shares.";
+				return;
+			} else if (invalidInput) {
+				message.textContent = "Invalid input - must be positive integers.";
+				return;
+			} else if (!sales.length) {
+				message.textContent = "No shares selected to trade.";
+				return;
+			}
+			try {
+				sellSpinner.style.setProperty("display", "flex", "important");
+				sellButton.style.display = "none";
+				document.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
+				const res = await fetch("/sell", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify(sales),
+				});
+				const data = await res.json();
+				if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
+				if (!data || !data.updated_balance) throw new Error("Missing data");
 
-        if (symbols.length) {
-            updatePrices(true).then(() => {
-                sellFormListener()
-                buyFormListener()
-                if (priceIntervalId) clearInterval(priceIntervalId)
-                priceIntervalId = setInterval(() => {
-                    updatePrices().then(() => {
-                        if (buyTotal.textContent) {
-                            buyInputs[0].dispatchEvent(new Event("input"))
-                        }
-                        if (sellTotal.textContent) {
-                            sellInputs[0].dispatchEvent(new Event("input"))
-                        }
-                    }).catch(error => console.error(error))
-                }, 5000)
+				const updatedBalance = data.updated_balance;
+				message.textContent = "Sale Successful!";
+				setBalance(updatedBalance);
+				balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
+				holdings.forEach((holding) => {
+					const buyInput = holding.querySelector(".buy-input");
+					const sellInput = holding.querySelector(".sell-input");
+					const symbol = holding.querySelector(".symbol").dataset.value;
+					const price = Number(holding.querySelector(".price").dataset.value);
+					const sharesCell = holding.querySelector(".current-shares");
+					const currentShares = Number(sharesCell.dataset.value);
+					const valueCell = holding.querySelector(".value");
 
-            })
-        } else {
-            document.querySelector('table').style.display = 'none';
-            message.innerHTML = 'No holdings to display - go to the <a href="/search">Search</a> page to start trading.';
-        }
+					const availableShares = Math.floor(getBalance() / price);
+					buyInput.max = availableShares;
 
-        const sellFormListener = () => {
-            sellForm.addEventListener('submit', async (e) => {
-                e.preventDefault()
-                const sales = []
-                const holdings = document.querySelectorAll('.holding')
-                message.textContent = ''
-                let invalidQuantity = false
-                let invalidInput = false
+					const sale = sales.find((el) => el.symbol == symbol);
 
-                for (const holding of holdings) {
-                    if (invalidQuantity || invalidInput) break;
+					sellInput.value = buyInput.value = "";
 
-                    const currentShares = Number(holding.querySelector('.current-shares').dataset.value);
-                    const quantity = Number(holding.querySelector('.sell-input').value);
-                    const symbol = holding.querySelector('.symbol').dataset.value;
+					if (sale) {
+						const updatedShares = currentShares - sale.shares;
+						const updatedValue = price * updatedShares;
 
-                    if (quantity > currentShares) {
-                        invalidQuantity = true;
-                        break;
-                    } else if (quantity < 0 || !Number.isInteger(quantity)) {
-                        invalidInput = true;
-                        break;
-                    }
+						sharesCell.textContent = updatedShares;
+						sharesCell.dataset.value = updatedShares;
+						if (updatedShares > 0) {
+							sellInput.disabled = false;
+						}
+						sellInput.max = updatedShares;
+						valueCell.dataset.value = updatedValue;
+						valueCell.textContent = `$${updatedValue.toFixed(2)}`;
+					} else {
+						sellInput.disabled = false;
+					}
+				});
+				buyTotal.textContent = sellTotal.textContent = "";
+				const total = calculateTotal();
+				totalCell.dataset.value = total;
+				totalCell.textContent = `$${total.toFixed(2)}`;
+			} catch (error) {
+				console.error(error.message);
+				message.textContent = "Unexpected error";
+			} finally {
+				sellSpinner.style.setProperty("display", "none", "important");
+				sellButton.style.display = "";
+				buyButton.disabled = sellButton.disabled = false;
+				holdings.forEach((holding) => {
+					const buyInput = holding.querySelector(".buy-input");
+					const sellInput = holding.querySelector(".sell-input");
+					if (buyInput.max > 0) {
+						buyInput.disabled = false;
+					}
+					if (sellInput.max > 0) {
+						sellInput.disabled = false;
+					}
+				});
+				transactionInProgress = false;
+			}
+		});
+	};
 
-                    if (quantity > 0) {
-                        sales.push({
-                            symbol: symbol,
-                            shares: quantity
-                        });
-                    }
-                }
+	const buyFormListener = () => {
+		buyForm.addEventListener("submit", async (e) => {
+			e.preventDefault();
+			if (transactionInProgress) return;
+			transactionInProgress = true;
+			message.textContent = "";
+			const purchases = [];
+			let purchaseTotal = 0;
+			let invalidInput = false;
+			const holdings = document.querySelectorAll(".holding");
+			for (const holding of holdings) {
+				if (invalidInput) break;
 
-                if (invalidQuantity) {
-                    message.textContent = 'Could not complete trade - insufficient shares.'
-                    return
-                } else if (invalidInput) {
-                    message.textContent = 'Invalid input - must be positive integers.'
-                    return
-                } else if (!sales.length) {
-                    message.textContent = 'No shares selected to trade.'
-                    return
-                }
-                try {
-                    sellSpinner.style.setProperty('display', 'flex', 'important');
-                    sellButton.style.display = 'none'
-                    buyButton.disabled = true
-                    const res = await fetch('/sell', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(sales)
-                    })
-                    const data = await res.json()
-                    if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`)
-                    if (!data || !data.updated_balance) throw new Error('Missing data')
+				const currentShares = Number(holding.querySelector(".current-shares").dataset.value);
+				const quantity = Number(holding.querySelector(".buy-input").value);
+				const symbol = holding.querySelector(".symbol").dataset.value;
+				const price = Number(holding.querySelector(".price").dataset.value);
 
-                    const updatedBalance = data.updated_balance
-                    message.textContent = 'Sale Successful!'
-                    setBalance(updatedBalance)
-                    balanceCell.textContent = `$${updatedBalance.toFixed(2)}`
-                    holdings.forEach((holding) => {
-                        const buyInput = holding.querySelector('.buy-input');
-                        const sellInput = holding.querySelector('.sell-input');
-                        const symbol = holding.querySelector('.symbol').dataset.value
-                        const price = Number(holding.querySelector('.price').dataset.value)
-                        const sharesCell = holding.querySelector('.current-shares')
-                        const currentShares = Number(sharesCell.dataset.value)
-                        const valueCell = holding.querySelector('.value')
+				purchaseTotal += quantity * price;
+				if (quantity < 0 || !Number.isInteger(quantity)) {
+					invalidInput = true;
+					break;
+				}
 
+				if (quantity > 0) {
+					purchases.push({
+						symbol: symbol,
+						shares: quantity,
+					});
+				}
+			}
+			if (purchaseTotal > getBalance()) {
+				message.textContent = "Could not complete trade - insufficient funds.";
+				return;
+			} else if (invalidInput) {
+				message.textContent = "Invalid input - must be positive integers.";
+				return;
+			} else if (!purchases.length) {
+				message.textContent = "No shares selected to trade.";
+				return;
+			}
+			try {
+				buySpinner.style.setProperty("display", "flex", "important");
+				buyButton.style.display = "none";
+				document.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
+				const res = await fetch("/buy", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify(purchases),
+				});
+				const data = await res.json();
+				if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
+				if (!data || !data.updated_balance) throw new Error("Missing data");
+				const updatedBalance = data.updated_balance;
+				message.textContent = "Purchase Successful!";
+				setBalance(updatedBalance);
+				balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
+				holdings.forEach((holding) => {
+					const buyInput = holding.querySelector(".buy-input");
+					const sellInput = holding.querySelector(".sell-input");
+					const symbol = holding.querySelector(".symbol").dataset.value;
+					const price = Number(holding.querySelector(".price").dataset.value);
+					const sharesCell = holding.querySelector(".current-shares");
+					const currentShares = Number(sharesCell.dataset.value);
+					const valueCell = holding.querySelector(".value");
 
-                        const availableShares = Math.floor(getBalance() / price)
-                        if (availableShares > 0) {
-                            buyInput.disabled = false
-                            buyInput.max = availableShares
-                        } else {
-                            buyInput.disabled = true
-                        }
+					const availableShares = Math.floor(getBalance() / price);
+					buyInput.max = availableShares;
 
-                        const sale = sales.find(
-                            (el) => el.symbol == symbol
-                        );
+					buyInput.value = sellInput.value = "";
 
-                        if (sale) {
-                            const updatedShares = currentShares - sale.shares
-                            const updatedValue = price * updatedShares
+					const purchase = purchases.find((el) => el.symbol == symbol);
+					if (purchase) {
+						const updatedShares = currentShares + purchase.shares;
+						const updatedValue = price * updatedShares;
+						sellInput.max = updatedShares;
+						sharesCell.textContent = updatedShares;
+						sharesCell.dataset.value = updatedShares;
+						valueCell.dataset.value = updatedValue;
+						valueCell.textContent = `$${updatedValue.toFixed(2)}`;
+					}
+				});
+				buyTotal.textContent = sellTotal.textContent = "";
+				const total = calculateTotal();
+				totalCell.dataset.value = total;
+				totalCell.textContent = `$${total.toFixed(2)}`;
+			} catch (error) {
+				console.error(error.message);
+				message.textContent = error.message == "Insufficient funds" ? error.message : "Unexpected error";
+			} finally {
+				buySpinner.style.setProperty("display", "none", "important");
+				buyButton.style.display = "";
+				sellButton.disabled = buyButton.disabled = false;
+				holdings.forEach((holding) => {
+					const buyInput = holding.querySelector(".buy-input");
+					const sellInput = holding.querySelector(".sell-input");
+					if (buyInput.max > 0) {
+						buyInput.disabled = false;
+					}
+					if (sellInput.max > 0) {
+						sellInput.disabled = false;
+					}
+				});
+				transactionInProgress = false;
+			}
+		});
+	};
 
-                            sharesCell.textContent = updatedShares
-                            sharesCell.dataset.value = updatedShares
-                            if (updatedShares == 0) {
-                                sellInput.disabled = true
-                            }
-                            sellInput.value = ''
-                            sellInput.max = updatedShares
-                            valueCell.dataset.value = updatedValue
-                            valueCell.textContent = `$${updatedValue.toFixed(2)}`
-                        }
-                    })
-                    const total = calculateTotal()
-                    totalCell.dataset.value = total
-                    totalCell.textContent = `$${total}`
-                } catch (error) {
-                    console.error(error.message)
-                    message.textContent = 'Unexpected error'
-                } finally {
-                    sellSpinner.style.setProperty('display', 'none', 'important');
-                    sellButton.style.display = ''
-                    buyButton.disabled = false
-                    buyTotal.textContent = ''
-                    sellTotal.textContent = ''
-                }
-            })
-        }
+	buyInputs.forEach((input) => {
+		input.addEventListener("input", (event) => {
+			let buySum = 0;
+			buyInputs.forEach((input) => {
+				const price = Number(input.closest("tr").querySelector(".price").dataset.value);
+				buySum += price * Number(input.value);
+			});
+			buyTotal.textContent = `$${buySum.toFixed(2)}`;
+		});
+	});
 
-        const buyFormListener = () => {
-            buyForm.addEventListener('submit', async (e) => {
-                e.preventDefault()
-                message.textContent = ''
-                const purchases = []
-                let purchaseTotal = 0
-                let invalidInput = false
-                const holdings = document.querySelectorAll('.holding')
-                for (const holding of holdings) {
-                    if (invalidInput) break
-
-                    const currentShares = Number(holding.querySelector('.current-shares').dataset.value);
-                    const quantity = Number(holding.querySelector('.buy-input').value);
-                    const symbol = holding.querySelector('.symbol').dataset.value;
-                    const price = Number(holding.querySelector('.price').dataset.value);
-
-                    purchaseTotal += quantity * price;
-                    if (quantity < 0 || !Number.isInteger(quantity)) {
-                        invalidInput = true;
-                        break;
-                    }
-
-                    if (quantity > 0) {
-                        purchases.push({
-                            'symbol': symbol,
-                            'shares': quantity
-                        });
-                    }
-                }
-                if (purchaseTotal > getBalance()) {
-                    message.textContent = 'Could not complete trade - insufficient funds.'
-                    return
-                } else if (invalidInput) {
-                    message.textContent = 'Invalid input - must be positive integers.'
-                    return
-                } else if (!purchases.length) {
-                    message.textContent = 'No shares selected to trade.'
-                    return
-                }
-                try {
-                    buySpinner.style.setProperty('display', 'flex', 'important');
-                    buyButton.style.display = 'none'
-                    sellButton.disabled = true
-                    const res = await fetch('/buy', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(purchases)
-                    })
-                    const data = await res.json()
-                    if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`)
-                    if (!data || !data.updated_balance) throw new Error('Missing data')
-                    const updatedBalance = data.updated_balance
-                    message.textContent = 'Purchase Successful!'
-                    setBalance(updatedBalance)
-                    balanceCell.textContent = `$${updatedBalance.toFixed(2)}`
-                    holdings.forEach((holding) => {
-                        const buyInput = holding.querySelector('.buy-input');
-                        const sellInput = holding.querySelector('.sell-input');
-                        const symbol = holding.querySelector('.symbol').dataset.value
-                        const price = Number(holding.querySelector('.price').dataset.value)
-                        const sharesCell = holding.querySelector('.current-shares')
-                        const currentShares = Number(sharesCell.dataset.value)
-                        const valueCell = holding.querySelector('.value')
-
-                        const availableShares = Math.floor(getBalance() / price)
-                        if (availableShares > 0) {
-                            buyInput.disabled = false
-                            buyInput.max = availableShares
-                        } else {
-                            buyInput.disabled = true
-                        }
-                        buyInput.value = ''
-                        buyInput.max = availableShares
-
-                        const purchase = purchases.find(
-                            (el) => el.symbol == symbol
-                        );
-                        if (purchase) {
-                            const updatedShares = currentShares + purchase.shares
-                            const updatedValue = price * updatedShares
-                            sellInput.max = updatedShares
-                            sharesCell.textContent = updatedShares
-                            sharesCell.dataset.value = updatedShares
-                            valueCell.dataset.value = updatedValue
-                            valueCell.textContent = `$${updatedValue.toFixed(2)}`
-
-                        }
-                    })
-                    const total = calculateTotal()
-                    totalCell.dataset.value = total
-                    totalCell.textContent = `$${total}`
-
-                } catch (error) {
-                    console.error(error.message)
-                    message.textContent = error.message == 'Insufficient funds' ? error.message : 'Unexpected error'
-                } finally {
-                    buySpinner.style.setProperty('display', 'none', 'important');
-                    buyButton.style.display = ''
-                    sellButton.disabled = false
-                    buyTotal.textContent = ''
-                    sellTotal.textContent = ''
-                }
-            })
-        }
-
-        buyInputs.forEach((input) => {
-            input.addEventListener('input', (event) => {
-                let buySum = 0
-                buyInputs.forEach(input => {
-                    const price = Number(input.closest('tr').querySelector('.price').dataset.value)
-                    buySum += price * Number(input.value)
-                })
-                buyTotal.textContent = `$${buySum.toFixed(2)}`
-            });
-
-        })
-
-        sellInputs.forEach((input) => {
-            input.addEventListener('input', (event) => {
-                let sellSum = 0
-                sellInputs.forEach(input => {
-                    const price = Number(input.closest('tr').querySelector('.price').dataset.value)
-                    sellSum += price * Number(input.value)
-                })
-                sellTotal.textContent = `$${sellSum.toFixed(2)}`
-            });
-
-        })
-    </script>
+	sellInputs.forEach((input) => {
+		input.addEventListener("input", (event) => {
+			let sellSum = 0;
+			sellInputs.forEach((input) => {
+				const price = Number(input.closest("tr").querySelector(".price").dataset.value);
+				sellSum += price * Number(input.value);
+			});
+			sellTotal.textContent = `$${sellSum.toFixed(2)}`;
+		});
+	});
+</script>
 
 {% endblock %}

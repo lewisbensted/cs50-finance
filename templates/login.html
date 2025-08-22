@@ -1,17 +1,69 @@
-{% extends "layout.html" %}
-
-{% block title %}
-    Log In
-{% endblock %}
-
-{% block main %}
-    <form action="/login" method="post">
-        <div class="mb-3">
-            <input autocomplete="off" autofocus class="form-control mx-auto w-auto" name="username" placeholder="Username" type="text">
-        </div>
-        <div class="mb-3">
-            <input class="form-control mx-auto w-auto" name="password" placeholder="Password" type="password">
-        </div>
-        <button class="btn btn-primary" type="submit">Log In</button>
-    </form>
+{% extends "layout.html" %} {% block title %} Log In {% endblock %} {% block main %}
+<form action="/login" method="post">
+	<div class="mb-3">
+		<input
+			autocomplete="off"
+			autofocus
+			class="form-control mx-auto w-auto"
+			name="username"
+			placeholder="Username"
+			type="text"
+		/>
+	</div>
+	<div class="mb-3">
+		<input class="form-control mx-auto w-auto" name="password" placeholder="Password" type="password" />
+	</div>
+	<button class="btn btn-primary" type="submit" id="login-button">Log In</button>
+	<div class="d-flex justify-content-center login-spinner" style="display: none">
+		<div class="spinner-border text-primary" role="status" id="login-spinner">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+	</div>
+</form>
+<span id="message"></span>
+<script>
+	const message = document.getElementById("message");
+	const loginButton = document.getElementById("login-button");
+	const loginSpinner = document.querySelector(".login-spinner");
+	const loginForm = document.querySelector("form");
+	loginForm.addEventListener("submit", async (event) => {
+		event.preventDefault();
+		loginButton.style.display = "none";
+		loginSpinner.style.setProperty("display", "flex", "important");
+		document.querySelectorAll("input, button").forEach(el=>el.disabled=true)
+		message.textContent = "";
+		try {
+			const res = await fetch("/login", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					username: loginForm.username.value,
+					password: loginForm.password.value,
+				}),
+			});
+			if (res.redirected) {
+				window.location.href = res.url;
+				return;
+			}
+			if (!res.ok) {
+				const data = await res.json();
+				if ([400, 401].includes(res.status) && data.error !== "Missing request body") {
+					message.textContent = data.error;
+				} else {
+					throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
+				}
+			}
+		} catch (error) {
+			console.error(error);
+			message.textContent = "Unexpected error";
+		} finally {
+			loginButton.style.display = "";
+			loginSpinner.style.setProperty("display", "none", "important");
+			document.querySelectorAll("input, button").forEach(el=>el.disabled=false)
+		
+		}
+	});
+</script>
 {% endblock %}

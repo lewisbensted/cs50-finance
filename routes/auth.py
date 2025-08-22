@@ -1,4 +1,12 @@
-from flask import Blueprint, render_template, request, redirect, session, flash, jsonify
+from flask import (
+    Blueprint,
+    render_template,
+    request,
+    redirect,
+    session,
+    flash,
+    jsonify,
+)
 from werkzeug.security import check_password_hash, generate_password_hash
 import sqlite3
 
@@ -12,23 +20,34 @@ def login():
     if request.method == "POST":
         db = get_db()
         cursor = db.cursor()
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password")
-        if not username:
-            return jsonify({"error": "Username not provided"}), 400
 
-        if not password:
-            return jsonify({"error": "Password not provided"}), 400
+        try:
+            data = request.get_json()
+        
+            if not data:
+                return jsonify({"error": "Missing request body"}), 400
 
-        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
-        user = cursor.fetchone()
+            username = data.get("username", "").strip()
+            password = data.get("password", "")
 
-        if user is None or not check_password_hash(user["hash"], password):
-            return jsonify({"error": "Invalid username or password"}), 401
+            if not username:
+                return jsonify({"error": "Username not provided"}), 400
 
-        session["user_id"] = user["id"]
+            if not password:
+                return jsonify({"error": "Password not provided"}), 400
 
-        return redirect("/")
+            cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+            user = cursor.fetchone()
+
+            if user is None or not check_password_hash(user["hash"], password):
+                return jsonify({"error": "Invalid username or password"}), 401
+
+            session["user_id"] = user["id"]
+
+            return redirect("/")
+        except Exception as e:
+            print(e)
+            return jsonify({"error": "Unexpected error"}), 500
     else:
         if session.get("user_id"):
             return redirect("/")

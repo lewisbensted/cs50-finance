@@ -1,408 +1,402 @@
-{% extends "layout.html" %}
+{% extends "layout.html" %} {% block title %} Quote {% endblock %} {% block main %}
+<h1>Search</h1>
+<br />
+<form id="quote-form">
+	<div class="mb-3">
+		<input
+			autocomplete="off"
+			autofocus
+			class="form-control mx-auto w-auto quote-input"
+			name="symbol"
+			placeholder="Symbol"
+			type="text"
+		/>
+	</div>
+	<button class="btn btn-primary quote-button" type="submit">Get Quote</button>
+	<div class="d-flex justify-content-center quote-spinner">
+		<div class="spinner-border text-primary" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+	</div>
+</form>
 
-{% block title %}
-    Quote
-{% endblock %}
+<table style="display: none">
+	<thead>
+		<tr>
+			<th>Company Name</th>
+			<th>Symbol</th>
+			<th>Shares</th>
+			<th>Price</th>
+			<th>Value</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr class="holding">
+			<td class="name"></td>
+			<td class="symbol"></td>
+			<td class="current-shares"></td>
+			<td class="price"></td>
+			<td class="value"></td>
+			<td>
+				<form class="sell-form" style="display: flex" novalidate>
+					<input type="hidden" name="symbol" />
+					<input type="hidden" name="price" />
+					<input type="hidden" name="current_shares" />
+					<input type="number" name="shares" min="1" class="sell-input" required disabled />
+					<button type="submit" class="btn btn-primary sell-button" disabled>Sell</button>
+					<div class="d-flex justify-content-center sell-spinner" style="display: none">
+						<div class="spinner-border text-primary" role="status">
+							<span class="visually-hidden">Loading...</span>
+						</div>
+					</div>
+				</form>
+			</td>
+			<td>
+				<form class="buy-form" style="display: flex" novalidate>
+					<input type="hidden" name="symbol" />
+					<input type="hidden" name="price" />
+					<input type="hidden" name="current_shares" />
+					<input type="number" name="shares" min="1" class="buy-input" required disabled />
+					<button type="submit" class="btn btn-primary buy-button" disabled>Buy</button>
+					<div class="d-flex justify-content-center buy-spinner" style="display: none">
+						<div class="spinner-border text-primary" role="status">
+							<span class="visually-hidden">Loading...</span>
+						</div>
+					</div>
+				</form>
+			</td>
+		</tr>
+	</tbody>
+	<tfoot>
+		<tr>
+			<td></td>
+			<td></td>
+			<td></td>
+			<td class="footer">Total</td>
+			<td></td>
+			<td class="sell-total"></td>
+			<td class="buy-total"></td>
+		</tr>
+		<tr>
+			<td></td>
+			<td></td>
+			<td></td>
+			<td class="footer">Balance</td>
+			<td id="balance">
+				<div class="spinner-border spinner-border-sm text-primary" role="status">
+					<span class="visually-hidden">Loading...</span>
+				</div>
+			</td>
+		</tr>
+	</tfoot>
+</table>
+<span id="message"></span>
 
-{% block main %}
-    <h1>Search</h1><br />
-    <form id="quote-form">
-        <div class="mb-3">
-            <input autocomplete="off" autofocus class="form-control mx-auto w-auto quote-input" name="symbol" placeholder="Symbol" type="text">
-        </div>
-        <button class="btn btn-primary quote-button" type="submit">Get Quote</button>
-        <div class="d-flex justify-content-center quote-spinner">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-        </div>
-    </form>
+<script>
+	const message = document.getElementById("message");
 
-    <table style="display:none">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Symbol</th>
-                <th>Shares</th>
-                <th>Price</th>
-                <th>Value</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr class='holding'>
-                <td class='name'></td>
-                <td class='symbol'></td>
-                <td class='current-shares'></td>
-                <td class='price'></td>
-                <td class='value'></td>
-                <td>
-                    <form class='sell-form' style='display:flex' novalidate>
-                        <input type="hidden" name="symbol">
-                        <input type="hidden" name="price">
-                        <input type="hidden" name="current_shares">
-                        <input type="number" name="shares" min="1" class='sell-input' required>
-                        <button type="submit" class='btn btn-primary sell-button' disabled>Sell</button>
-                        <div class="d-flex justify-content-center sell-spinner" style="display:none">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                        </div>
-                    </form>
-                </td>
-                <td>
-                    <form class='buy-form' style='display:flex' novalidate>
-                        <input type="hidden" name="symbol">
-                        <input type="hidden" name="price">
-                        <input type="hidden" name="current_shares">
-                        <input type="number" name="shares" min="1" class='buy-input' required>
-                        <button type="submit" class="btn btn-primary buy-button" disabled>Buy</button>
-                        <div class="d-flex justify-content-center buy-spinner" style="display:none">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                        </div>
-                    </form>
-                </td>
-            </tr>
-        </tbody>
-        <tfoot>
-            <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td class='footer'>Total</td>
-                <td></td>
-                <td class='sell-total'></td>
-                <td class='buy-total'></td>
-            </tr>
-            <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td class='footer'>Balance</td>
-                <td id='balance'>
-                    <div class="spinner-border spinner-border-sm text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                </td>
-            </tr>
-        </tfoot>
-    </table>
-    <span id='message'></span>
+	const getBalance = () => JSON.parse(localStorage.getItem("balance"));
+	const setBalance = (balance) => localStorage.setItem("balance", balance);
 
-    <script>
-        const message = document.getElementById('message')
+	const balanceCell = document.getElementById("balance");
+	const allButtons = document.querySelectorAll("button");
+	const totalCell = document.getElementById("total");
+	balanceCell.textContent = `$${getBalance().toFixed(2)}`;
 
-        const getBalance = () => JSON.parse(localStorage.getItem('balance'))
-        const setBalance = (balance) => localStorage.setItem('balance', balance)
+	const quoteSpinner = document.querySelector(".quote-spinner");
+	const quoteButton = document.querySelector(".quote-button");
+	const quoteTable = document.querySelector("table");
+	const quoteInput = document.querySelector(".quote-input");
 
-        const balanceCell = document.getElementById('balance')
-        const allButtons = document.querySelectorAll('button')
-        const totalCell = document.getElementById('total')
-        balanceCell.textContent = `$${getBalance().toFixed(2)}`
+	const nameCell = document.querySelector(".name");
+	const symbolCell = document.querySelector(".symbol");
+	const priceCell = document.querySelector(".price");
+	const sharesCell = document.querySelector(".current-shares");
+	const valueCell = document.querySelector(".value");
 
-        const quoteSpinner = document.querySelector('.quote-spinner')
-        const quoteButton = document.querySelector('.quote-button')
-        const quoteTable = document.querySelector('table')
+	const buySpinner = document.querySelector(".buy-spinner");
+	const buyButton = document.querySelector(".buy-button");
 
-        const nameCell = document.querySelector('.name')
-        const symbolCell = document.querySelector('.symbol')
-        const priceCell = document.querySelector('.price')
-        const sharesCell = document.querySelector('.current-shares')
-        const valueCell = document.querySelector('.value')
+	const sellSpinner = document.querySelector(".sell-spinner");
+	const sellButton = document.querySelector(".sell-button");
 
-        const buySpinner = document.querySelector('.buy-spinner')
-        const buyButton = document.querySelector('.buy-button')
+	const buyForm = document.querySelector(".buy-form");
+	const sellForm = document.querySelector(".sell-form");
 
-        const sellSpinner = document.querySelector('.sell-spinner')
-        const sellButton = document.querySelector('.sell-button')
+	const buyTotal = document.querySelector(".buy-total");
+	const sellTotal = document.querySelector(".sell-total");
 
-        const buyForm = document.querySelector('.buy-form')
-        const sellForm = document.querySelector('.sell-form')
+	let priceIntervalId;
+	let transactionInProgress;
 
-        const buyTotal = document.querySelector('.buy-total')
-        const sellTotal = document.querySelector('.sell-total')
+	const fetchShares = async (symbol) => {
+		const res = await fetch(`/holdings?symbol=${encodeURIComponent(symbol)}`);
+		if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`);
+		const data = await res.json();
+		if (!data || data.shares == undefined) throw new Error("Missing data");
+		return data.shares;
+	};
 
-        let priceIntervalId
+	const updateShares = async (symbol) => {
+		try {
+			const shares = await fetchShares(symbol);
+			sharesCell.dataset.value = sharesCell.textContent = shares;
+			buyForm.current_shares.value = sellForm.current_shares.value = shares;
+			sellForm.shares.max = shares;
+			if (shares > 0) {
+				sellForm.shares.disabled = false;
+				sellButton.disabled = false;
+			} 
+			return shares;
+		} catch (error) {
+			console.error(error);
+			throw error;
+		}
+	};
 
-        const fetchShares = async (symbol) => {
-            const res = await fetch(`/holdings?symbol=${encodeURIComponent(symbol)}`)
-            if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`)
-            const data = await res.json()
-            if (!data || data.shares == undefined) throw new Error('Missing data')
-            return data.shares
-        }
+	const fetchPrice = async (symbol) => {
+		const res = await fetch(`/prices?symbols=${encodeURIComponent(symbol)}`);
+		const data = await res.json().catch((error) => console.error(error));
 
-        const updateShares = async (symbol) => {
-            try {
-                const shares = await fetchShares(symbol)
-                sharesCell.dataset.value = sharesCell.textContent = shares
-                buyForm.current_shares.value = sellForm.current_shares.value = shares
-                if (shares > 0) {
-                    sellForm.shares.max = shares
-                    sellForm.shares.disabled = false
-                    sellButton.disabled = false
-                } else {
-                    sellForm.shares.disabled = true
-                    sellButton.disabled = true
-                }
-                return shares
-            } catch (error) {
-                console.error(error)
-                throw error
-            }
-        }
+		if (!res.ok) {
+			throw new Error(data && data.error ? data.error : `Error ${res.status}: ${res.statusText}`);
+		}
+		if (!data || !data[0] || data[0].symbol !== symbol || !data[0].name) throw new Error("Missing data");
 
+		const price = data[0].price;
+		if (typeof price !== "number" || Number.isNaN(price)) {
+			throw new Error("Invalid price value");
+		}
+		return data[0];
+	};
 
-        const fetchPrice = async (symbol) => {
-            const res = await fetch(`/prices?symbols=${encodeURIComponent(symbol)}`);
-            const data = await res.json().catch((error) => console.error(error));
+	const updatePrice = async (symbol, isFirstLoad = false) => {
+		try {
+			const { price, name } = await fetchPrice(symbol);
+			if (isFirstLoad) {
+				nameCell.textContent = name;
+				buyTotal.textContent = "";
+				sellTotal.textContent = "";
+			}
+			priceCell.style.color = valueCell.style.color = "";
+			priceCell.dataset.value = price;
+			priceCell.textContent = `$${price.toFixed(2)}`;
+			sellForm.price.value = buyForm.price.value = price;
+			const availableShares = Math.floor(getBalance() / price);
+			buyForm.shares.max = availableShares;
+			if (!transactionInProgress) {
+				if (availableShares > 0) {
+					buyForm.shares.disabled = false;
+					buyButton.disabled = false;
+				} else {
+					buyForm.shares.disabled = true;
+					buyButton.disabled = true;
+				}
+			}
+			return price;
+		} catch (error) {
+			console.error(error);
+			if (isFirstLoad) throw error;
+			priceCell.style.color = valueCell.style.color = "red";
+			return null;
+		}
+	};
 
-            if (!res.ok) {
-                throw new Error((data && data.error) ? data.error : `Error ${res.status}: ${res.statusText}`);
-            }
-            if (!data || !data[0] || data[0].symbol !== symbol || !data[0].name) throw new Error('Missing data');
+	const quoteForm = document.getElementById("quote-form");
+	quoteForm.addEventListener("submit", async (e) => {
+		e.preventDefault();
+		const shareSymbol = document.querySelector(".quote-input").value.trim().toUpperCase();
 
-            const price = data[0].price;
-            if (typeof price !== "number" || Number.isNaN(price)) {
-                throw new Error('Invalid price value');
-            }
-            return data[0];
-        };
+		if (!shareSymbol) {
+			message.textContent = "Invalid input - please enter a symbol.";
+			return;
+		}
 
-        const updatePrice = async (symbol, isFirstLoad = false) => {
-            try {
-                const {
-                    price,
-                    name
-                } = await fetchPrice(symbol)
-                if (isFirstLoad) {
-                    nameCell.textContent = name
-                    buyTotal.textContent = ''
-                    sellTotal.textContent = ''
-                }
-                priceCell.style.color = ''
-                priceCell.dataset.value = price
-                priceCell.textContent = `$${price.toFixed(2)}`
-                sellForm.price.value = buyForm.price.value = price
-                const availableShares = Math.floor(getBalance() / price)
-                if (availableShares > 0) {
-                    buyForm.shares.max = availableShares
-                    buyForm.shares.disabled = false;
-                    buyButton.disabled = false;
-                } else {
-                    buyForm.shares.disabled = true
-                    buyButton.disabled = true
-                }
-                return price
+		quoteButton.style.display = "none";
+		quoteSpinner.style.setProperty("display", "flex", "important");
+		quoteTable.style.display = "none";
+		message.textContent = "";
+		sellForm.shares.value = buyForm.shares.value = "";
 
+		try {
+			const [shares, sharePrice] = await Promise.all([updateShares(shareSymbol), updatePrice(shareSymbol, true)]);
+			buyForm.symbol.value = sellForm.symbol.value = shareSymbol;
+			symbolCell.textContent = shareSymbol;
+			valueCell.textContent = `$${(shares * sharePrice).toFixed(2)}`;
+			quoteTable.style.display = "";
+			if (priceIntervalId) clearInterval(priceIntervalId);
 
-            } catch (error) {
-                console.error(error)
-                if (isFirstLoad) throw error
-                priceCell.style.color = 'red'
-                valueCell.style.color = 'red'
-                return null
+			priceIntervalId = setInterval(() => {
+				updatePrice(shareSymbol)
+					.then(() => {
+						if (!transactionInProgress) {
+							if (buyTotal.textContent) buyForm.shares.dispatchEvent(new Event("input"));
+							if (sellTotal.textContent) sellForm.shares.dispatchEvent(new Event("input"));
+						}
+					})
+					.catch((error) => console.error(error));
+			}, 5000);
+		} catch (error) {
+			console.error(error);
+			message.textContent = error.message == "Symbol not found" ? error.message : "Unexpected error";
+		} finally {
+			quoteButton.style.display = "";
+			quoteSpinner.style.setProperty("display", "none", "important");
+		}
+	});
 
-            }
-        }
+	buyForm.addEventListener("submit", async (e) => {
+		e.preventDefault();
+		if (transactionInProgress) return;
+		transactionInProgress = true;
+		message.textContent = "";
+		const shares = Number(buyForm.shares.value);
+		if (!shares) {
+			message.textContent = "No shares selected to trade.";
+			transactionInProgress = false;
+			return;
+		} else if (shares > Number(buyForm.shares.max)) {
+			message.textContent = "Could not complete trade - insufficient funds.";
+			transactionInProgress = false;
+			return;
+		} else if (shares < 0 || !Number.isInteger(shares)) {
+			message.textContent = "Invalid input - must be a positive integer.";
+			transactionInProgress = false;
+			return;
+		}
+		try {
+			buySpinner.style.setProperty("display", "flex", "important");
+			buyButton.style.display = "none";
+			document.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
+			const res = await fetch("/buy", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify([
+					{
+						symbol: buyForm.symbol.value,
+						shares: shares,
+					},
+				]),
+			});
+			const data = await res.json();
+			if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
+			if (!data || !data.updated_balance) throw new Error("Missing data");
 
+			message.textContent = "Purchase Successful!";
+			const updatedBalance = data.updated_balance;
+			setBalance(updatedBalance);
+			balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
+			const updatedShares = Number(buyForm.current_shares.value) + shares;
+			buyForm.current_shares.value = sellForm.current_shares.value = updatedShares;
+			const updatedValue = Number(buyForm.price.value) * updatedShares;
+			valueCell.textContent = `$${updatedValue.toFixed(2)}`;
+			sharesCell.textContent = updatedShares;
+			sharesCell.dataset.value = updatedShares;
+			sellForm.shares.max = updatedShares;
+			const availableShares = Math.floor(updatedBalance / Number(buyForm.price.value));
+			buyForm.shares.max = availableShares;
+			buyForm.shares.value = sellForm.shares.value = "";
+			buyTotal.textContent = sellTotal.textContent = "";
+		} catch (error) {
+			console.error(error);
+			message.textContent = error.message == "Insufficient funds" ? error.message : "Unexpected error";
+		} finally {
+			buySpinner.style.setProperty("display", "none", "important");
+			buyButton.style.display = "";
+			quoteButton.disabled = quoteInput.disabled = false;
+			if (sellForm.current_shares.value > 0) {
+				sellForm.shares.disabled = sellButton.disabled = false;
+			}
+			if (buyForm.shares.max > 0) {
+				buyButton.disabled = false;
+				buyForm.shares.disabled = false;
+			}
+			transactionInProgress = false;
+		}
+	});
 
+	sellForm.addEventListener("submit", async (e) => {
+		e.preventDefault();
+		if (transactionInProgress) return;
+		transactionInProgress = true;
+		message.textContent = "";
+		const shares = Number(sellForm.shares.value);
+		if (!shares) {
+			message.textContent = "No shares selected to trade.";
+			transactionInProgress = false;
+			return;
+		} else if (shares > Number(sellForm.current_shares.value)) {
+			message.textContent = "Could not complete trade - insufficient shares.";
+			transactionInProgress = false;
+			return;
+		} else if (shares < 0 || !Number.isInteger(shares)) {
+			message.textContent = "Invalid input - must be a positive integer.";
+			transactionInProgress = false;
+			return;
+		}
+		try {
+			sellSpinner.style.setProperty("display", "flex", "important");
+			sellButton.style.display = "none";
+			document.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
+			const res = await fetch("/sell", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify([
+					{
+						symbol: sellForm.symbol.value,
+						shares: shares,
+					},
+				]),
+			});
+			const data = await res.json();
+			if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
+			if (!data || !data.updated_balance) throw new Error("Missing data");
 
+			message.textContent = "Sale successful!";
+			const updatedBalance = data.updated_balance;
+			setBalance(updatedBalance);
+			balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
+			const updatedShares = Number(sellForm.current_shares.value) - shares;
+			buyForm.current_shares.value = sellForm.current_shares.value = updatedShares;
+			const updatedValue = Number(sellForm.price.value) * updatedShares;
+			valueCell.textContent = `$${updatedValue.toFixed(2)}`;
+			sharesCell.textContent = updatedShares;
+			sharesCell.dataset.value = updatedShares;
+			const availableShares = Math.floor(updatedBalance / Number(buyForm.price.value));
+			buyForm.shares.max = availableShares;
+			sellForm.shares.max = updatedShares;
+			buyForm.shares.value = sellForm.shares.value = "";
+			buyTotal.textContent = sellTotal.textContent = "";
+		} catch (error) {
+			console.error(error.message);
+			message.textContent = "Unexpected error";
+		} finally {
+			sellSpinner.style.setProperty("display", "none", "important");
+			sellButton.style.display = "";
+			quoteButton.disabled = quoteInput.disabled = false;
+			if (buyForm.shares.max > 0) {
+				buyForm.shares.disabled = false;
+				buyButton.disabled = false;
+			}
+			if (sellForm.current_shares.value > 0) {
+				sellForm.shares.disabled = false;
+				sellButton.disabled = false;
+			}
+			transactionInProgress = false;
+		}
+	});
 
-        const quoteForm = document.getElementById('quote-form')
-        quoteForm.addEventListener('submit', async (e) => {
-            e.preventDefault()
-            const shareSymbol = document.querySelector('.quote-input').value.trim().toUpperCase()
+	buyForm.shares.addEventListener("input", (event) => {
+		buyTotal.textContent = `-$${(Number(priceCell.dataset.value) * Number(buyForm.shares.value)).toFixed(2)}`;
+	});
 
-
-            if (!shareSymbol) {
-                message.textContent = 'Invalid input - please enter a symbol.'
-                return
-            }
-
-
-            quoteButton.style.display = 'none'
-            quoteSpinner.style.setProperty('display', 'flex', 'important');
-            quoteTable.style.display = 'none'
-            message.textContent = ''
-            sellForm.shares.value = buyForm.shares.value = ''
-
-            try {
-                const [shares, sharePrice] = await Promise.all([
-                    updateShares(shareSymbol),
-                    updatePrice(shareSymbol, true)
-                ]);
-                buyForm.symbol.value = sellForm.symbol.value = shareSymbol
-                symbolCell.textContent = shareSymbol
-                valueCell.textContent = `$${(shares * sharePrice).toFixed(2)}`
-                quoteTable.style.display = ''
-                if (priceIntervalId) clearInterval(priceIntervalId)
-
-                priceIntervalId = setInterval(() => {
-                    updatePrice(shareSymbol).then(() => {
-                        if (buyTotal.textContent) {
-                            buyForm.shares.dispatchEvent(new Event("input"))
-                        }
-                        if (sellTotal.textContent) {
-                            sellForm.shares.dispatchEvent(new Event("input"))
-                        }
-                    }).catch((error) => console.error(error))
-                }, 5000)
-
-
-            } catch (error) {
-                console.error(error)
-                message.textContent = error.message == 'Symbol not found' ? error.message : 'Unexpected error'
-            } finally {
-                quoteButton.style.display = ''
-                quoteSpinner.style.setProperty('display', 'none', 'important');
-            }
-        })
-
-
-        buyForm.addEventListener('submit', async (e) => {
-            e.preventDefault()
-            message.textContent = ''
-            const shares = Number(buyForm.shares.value)
-            if (!shares) {
-                message.textContent = 'No shares selected to trade.'
-                return
-            } else if (shares > Number(buyForm.shares.max)) {
-                message.textContent = 'Could not complete trade - insufficient funds.'
-                return
-            } else if (shares < 0 || !Number.isInteger(shares)) {
-                message.textContent = 'Invalid input - must be a positive integer.'
-                return
-            }
-            try {
-                buySpinner.style.setProperty('display', 'flex', 'important');
-                buyButton.style.display = 'none'
-                quoteButton.disabled = buyButton.disabled = sellForm.shares.disabled = sellButton.disabled = true
-                const res = await fetch('/buy', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify([{
-                        symbol: buyForm.symbol.value,
-                        shares: shares
-                    }])
-                })
-                const data = await res.json()
-                if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`)
-                if (!data || !data.updated_balance) throw new Error('Missing data')
-
-                message.textContent = 'Purchase Successful!'
-                const updatedBalance = data.updated_balance
-                setBalance(updatedBalance)
-                balanceCell.textContent = `$${updatedBalance.toFixed(2)}`
-                const updatedShares = Number(buyForm.current_shares.value) + shares
-                buyForm.current_shares.value = sellForm.current_shares.value = updatedShares
-                const updatedValue = Number(buyForm.price.value) * updatedShares
-                valueCell.textContent = `$${updatedValue.toFixed(2)}`
-                sharesCell.textContent = updatedShares
-                sharesCell.dataset.value = updatedShares
-                sellForm.shares.disabled = false
-                sellButton.disabled = false
-                sellForm.shares.max = updatedShares
-                buyForm.shares.value = sellForm.shares.value = ''
-                const availableShares = Math.floor(updatedBalance / Number(buyForm.price.value))
-                if (availableShares > 0) {
-                    buyForm.shares.disabled = false
-                    buyForm.shares.max = availableShares
-                    buyButton.disabled = false
-                }
-            } catch (error) {
-                console.error(error.message)
-                message.textContent = error.message == 'Insufficient funds' ? error.message : 'Unexpected error'
-            } finally {
-                buySpinner.style.setProperty('display', 'none', 'important');
-                buyButton.style.display = ''
-                quoteButton.disabled = false
-                buyTotal.textContent = ''
-                sellTotal.textContent = ''
-            }
-        })
-
-        sellForm.addEventListener('submit', async (e) => {
-            e.preventDefault()
-            message.textContent = ''
-            const shares = Number(sellForm.shares.value)
-            if (!shares) {
-                message.textContent = 'No shares selected to trade.'
-                return
-            } else if (shares > Number(sellForm.current_shares.value)) {
-                message.textContent = 'Could not complete trade - insufficient shares.'
-                return
-            } else if (shares < 0 || !Number.isInteger(shares)) {
-                message.textContent = 'Invalid input - must be a positive integer.'
-                return
-            }
-            try {
-                sellSpinner.style.setProperty('display', 'flex', 'important');
-                sellButton.style.display = 'none'
-                quoteButton.disabled = buyButton.disabled = sellForm.shares.disabled = sellButton.disabled = true
-                const res = await fetch('/sell', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify([{
-                        symbol: sellForm.symbol.value,
-                        shares: shares
-                    }])
-                })
-                const data = await res.json()
-                if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`)
-                if (!data || !data.updated_balance) throw new Error('Missing data')
-
-                message.textContent = 'Sale successful!'
-                const updatedBalance = data.updated_balance
-                setBalance(updatedBalance)
-                balanceCell.textContent = `$${updatedBalance.toFixed(2)}`
-                const updatedShares = Number(sellForm.current_shares.value) - shares
-                buyForm.current_shares.value = sellForm.current_shares.value = updatedShares
-                const updatedValue = Number(sellForm.price.value) * updatedShares
-                valueCell.textContent = `$${updatedValue.toFixed(2)}`
-                sharesCell.textContent = updatedShares
-                sharesCell.dataset.value = updatedShares
-                if (updatedShares > 0) {
-                    sellForm.shares.disabled = false
-                    sellButton.disabled = false
-                    sellForm.shares.max = updatedShares
-                }
-                buyForm.shares.value = sellForm.shares.value = ''
-                const availableShares = Math.floor(updatedBalance / Number(buyForm.price.value))
-                if (availableShares > 0) {
-                    buyForm.shares.disabled = false
-                    buyForm.shares.max = availableShares
-                    buyButton.disabled = false
-                } else {
-                    buyForm.shares.disabled = true
-                    buyButton.disabled = true
-                }
-
-            } catch (error) {
-                console.error(error.message)
-                message.textContent = 'Unexpected error'
-
-            } finally {
-                sellSpinner.style.setProperty('display', 'none', 'important');
-                sellButton.style.display = ''
-                quoteButton.disabled = false
-                buyTotal.textContent = ''
-                sellTotal.textContent = ''
-            }
-        })
-
-        buyForm.shares.addEventListener('input', (event) => {
-            buyTotal.textContent = `-$${(Number(priceCell.dataset.value) * Number(buyForm.shares.value)).toFixed(2)}`
-        });
-
-        sellForm.shares.addEventListener('input', (event) => {
-            sellTotal.textContent = `$${(Number(priceCell.dataset.value) * Number(sellForm.shares.value)).toFixed(2)}`
-        });
-    </script>
+	sellForm.shares.addEventListener("input", (event) => {
+		sellTotal.textContent = `$${(Number(priceCell.dataset.value) * Number(sellForm.shares.value)).toFixed(2)}`;
+	});
+</script>
 
 {% endblock %}

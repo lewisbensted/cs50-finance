@@ -37,7 +37,7 @@ table {
     font-weight: bold;
 }
 
-.sell-spinner, .buy-spinner, .quote-spinner {
+.sell-spinner, .buy-spinner, .quote-spinner, .login-spinner {
     display: none !important;
 }
 

@@ -17,6 +17,7 @@ def close_db(exception):
     if exception:
         current_app.logger.error(f"Exception during request: {exception}")
 
+
 def init_db():
     db = sqlite3.connect("finance.db")
     cursor = db.cursor()
@@ -24,10 +25,12 @@ def init_db():
     db.commit()
     db.close()
 
+
 @click.command("init-db")
 def init_db_command():
     init_db()
     click.echo("Database initialized.")
+
 
 def init_app(app):
     app.teardown_appcontext(close_db)
@@ -40,7 +43,8 @@ def fetch_holdings(user_id, symbol=None):
 
     if symbol:
         cursor.execute(
-            "SELECT symbol, shares FROM holdings WHERE user_id = ? AND symbol = ?",
+            "SELECT symbol, shares FROM holdings "
+            "WHERE user_id = ? AND symbol = ?",
             (user_id, symbol),
         )
         row = cursor.fetchone()
@@ -48,7 +52,8 @@ def fetch_holdings(user_id, symbol=None):
 
     else:
         cursor.execute(
-            "SELECT symbol, shares, name FROM holdings WHERE user_id = ? AND shares > 0",
+            "SELECT symbol, shares, company_name FROM holdings "
+            "WHERE user_id = ? AND shares > 0",
             (user_id,),
         )
         return [dict(row) for row in cursor.fetchall()]
