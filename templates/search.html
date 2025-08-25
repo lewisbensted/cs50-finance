@@ -42,7 +42,7 @@
 					<input type="hidden" name="symbol" />
 					<input type="hidden" name="price" />
 					<input type="hidden" name="current_shares" />
-					<input type="number" name="shares" min="1" class="sell-input" disabled pattern="\d*" />
+					<input type="number" name="shares" class="sell-input" disabled step="1" />
 					<button type="submit" class="btn btn-primary sell-button" disabled>Sell</button>
 					<div class="d-flex justify-content-center sell-spinner" style="display: none">
 						<div class="spinner-border text-primary" role="status">
@@ -56,7 +56,7 @@
 					<input type="hidden" name="symbol" />
 					<input type="hidden" name="price" />
 					<input type="hidden" name="current_shares" />
-					<input type="number" name="shares" min="1" class="buy-input" disabled pattern="\d*" />
+					<input type="number" name="shares" class="buy-input" disabled step="1" />
 					<button type="submit" class="btn btn-primary buy-button" disabled>Buy</button>
 					<div class="d-flex justify-content-center buy-spinner" style="display: none">
 						<div class="spinner-border text-primary" role="status">
@@ -146,6 +146,7 @@
 			if (shares > 0) {
 				sellForm.shares.disabled = false;
 				sellButton.disabled = false;
+				sellForm.shares.min = 1;
 			}
 			return shares;
 		} catch (error) {
@@ -164,8 +165,8 @@
 		if (!data || !data[0] || data[0].symbol !== symbol || !data[0].name) throw new Error("Missing data");
 
 		const price = data[0].price;
-		if (typeof price !== "number" || Number.isNaN(price)) {
-			throw new Error("Invalid price value");
+		if (typeof price !== "number" || Number.isNaN(price) || price <= 0) {
+			throw new Error(`Invalid price received for holding: ${symbol}`);
 		}
 		return data[0];
 	};
@@ -184,15 +185,15 @@
 			sellForm.price.value = buyForm.price.value = price;
 			const availableShares = Math.floor(getBalance() / price);
 			buyForm.shares.max = availableShares;
-			if (!transactionInProgress) {
-				if (availableShares > 0) {
-					buyForm.shares.disabled = false;
-					buyButton.disabled = false;
-				} else {
-					buyForm.shares.disabled = true;
-					buyButton.disabled = true;
-				}
+
+			if (availableShares > 0) {
+				if (!transactionInProgress) buyForm.shares.disabled = buyButton.disabled = false;
+				buyForm.shares.min = 1;
+			} else {
+				if (!transactionInProgress) buyForm.shares.disabled = buyButton.disabled = true;
+				buyForm.shares.min = 0;
 			}
+
 			return price;
 		} catch (error) {
 			console.error(error);
@@ -297,7 +298,8 @@
 			sharesCell.textContent = updatedShares;
 			sharesCell.dataset.value = updatedShares;
 			sellForm.shares.max = updatedShares;
-			const availableShares = Math.floor(updatedBalance / Number(buyForm.price.value));
+			const price = Number(buyForm.price.vale);
+			const availableShares = price > 0 ? Math.floor(updatedBalance / price) : 0;
 			buyForm.shares.max = availableShares;
 			buyForm.shares.value = sellForm.shares.value = "";
 			buyTotal.textContent = sellTotal.textContent = "";
@@ -308,12 +310,17 @@
 			buySpinner.style.setProperty("display", "none", "important");
 			buyButton.style.display = "";
 			quoteButton.disabled = quoteInput.disabled = false;
-			if (sellForm.current_shares.value > 0) {
-				sellForm.shares.disabled = sellButton.disabled = false;
+			if (Number(buyForm.shares.max) > 0) {
+				buyForm.shares.disabled = buyButton.disabled = false;
+				buyForm.shares.min = 1;
+			} else {
+				buyForm.shares.min = 0;
 			}
-			if (buyForm.shares.max > 0) {
-				buyButton.disabled = false;
-				buyForm.shares.disabled = false;
+			if (Number(sellForm.current_shares.value) > 0) {
+				sellForm.shares.disabled = sellButton.disabled = false;
+				sellForm.shares.min = 1;
+			} else {
+				sellForm.shares.min = 0;
 			}
 			transactionInProgress = false;
 		}
@@ -370,7 +377,8 @@
 			valueCell.textContent = `$${updatedValue.toFixed(2)}`;
 			sharesCell.textContent = updatedShares;
 			sharesCell.dataset.value = updatedShares;
-			const availableShares = Math.floor(updatedBalance / Number(buyForm.price.value));
+			const price = Number(buyForm.price.value);
+			const availableShares = price > 0 ? Math.floor(updatedBalance / price) : 0;
 			buyForm.shares.max = availableShares;
 			sellForm.shares.max = updatedShares;
 			buyForm.shares.value = sellForm.shares.value = "";
@@ -382,13 +390,17 @@
 			sellSpinner.style.setProperty("display", "none", "important");
 			sellButton.style.display = "";
 			quoteButton.disabled = quoteInput.disabled = false;
-			if (buyForm.shares.max > 0) {
-				buyForm.shares.disabled = false;
-				buyButton.disabled = false;
+			if (Number(buyForm.shares.max) > 0) {
+				buyForm.shares.disabled = buyButton.disabled = false;
+				buyForm.shares.min = 1;
+			} else {
+				buyForm.shares.min = 0;
 			}
-			if (sellForm.current_shares.value > 0) {
-				sellForm.shares.disabled = false;
-				sellButton.disabled = false;
+			if (Number(sellForm.current_shares.value) > 0) {
+				sellForm.shares.disabled = sellButton.disabled = false;
+				sellForm.shares.min = 1;
+			} else {
+				sellForm.shares.min = 0;
 			}
 			transactionInProgress = false;
 		}

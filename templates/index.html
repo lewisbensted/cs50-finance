@@ -38,11 +38,11 @@
 					class="sell-input"
 					form="sell-form"
 					disabled
-					pattern="\d*"
+					step="1"
 				/>
 			</td>
 			<td>
-				<input type="number" min="1" class="buy-input" form="buy-form" disabled pattern="\d*" />
+				<input type="number" class="buy-input" form="buy-form" disabled step="1" />
 			</td>
 		</tr>
 		{% endfor %}
@@ -169,8 +169,8 @@
 				const buyInput = holding.querySelector(".buy-input");
 				const sellInput = holding.querySelector(".sell-input");
 
-				if (share && share.price != null) {
-					const price = Number(share.price);
+				const price = Number(share?.price);
+				if (typeof price == "number" && !isNaN(price) && price > 0) {
 					const shares = Number(sharesCell.dataset.value);
 					const value = price * shares;
 
@@ -182,19 +182,21 @@
 					valueCell.dataset.value = value;
 					valueCell.textContent = `$${value.toFixed(2)}`;
 
-					if (shares > 0) {
-						if (!transactionInProgress) sellInput.disabled = false;
-					}
+					if (isFirstFetch) sellInput.disabled = false;
 
 					const availableShares = Math.floor(getBalance() / price);
 					buyInput.max = availableShares;
 					if (availableShares > 0) {
 						if (!transactionInProgress) buyInput.disabled = false;
+						buyInput.min = 1;
 					} else {
 						if (!transactionInProgress) buyInput.disabled = true;
+						buyInput.min = 0;
 					}
+
 					updated++;
 				} else {
+					console.warn(`Invalid price received for holding: ${share.symbol}`);
 					if (isFirstFetch) {
 						priceCell.textContent = `$--`;
 						valueCell.textContent = `$--`;
@@ -283,14 +285,17 @@
 			}
 			if (purchaseTotal > getBalance()) {
 				message.textContent = "Could not complete trade - insufficient funds.";
+				transactionInProgress = false;
 				return;
 			}
 			if (invalidInput) {
 				message.textContent = "Invalid input - must be positive integers.";
+				transactionInProgress = false;
 				return;
 			}
 			if (!purchases.length) {
 				message.textContent = "No shares selected to trade.";
+				transactionInProgress = false;
 				return;
 			}
 
@@ -321,9 +326,8 @@
 					const currentShares = Number(sharesCell.dataset.value);
 					const valueCell = holding.querySelector(".value");
 
-					const availableShares = Math.floor(getBalance() / price);
+					const availableShares = price > 0 ? Math.floor(updatedBalance / price) : 0;
 					buyInput.max = availableShares;
-
 					buyInput.value = sellInput.value = "";
 
 					const purchase = purchases.find((el) => el.symbol == symbol);
@@ -351,11 +355,19 @@
 				holdings.forEach((holding) => {
 					const buyInput = holding.querySelector(".buy-input");
 					const sellInput = holding.querySelector(".sell-input");
-					if (buyInput.max > 0) {
+					if (Number(buyInput.max) > 0) {
 						buyInput.disabled = false;
+						buyInput.min = 1;
+					} else {
+						buyInput.disabled = true;
+						buyInput.min = 0;
 					}
-					if (sellInput.max > 0) {
+					if (Number(sellInput.max) > 0) {
 						sellInput.disabled = false;
+						sellInput.min = 1;
+					} else {
+						sellInput.disabled = true;
+						sellInput.min = 0;
 					}
 				});
 				transactionInProgress = false;
@@ -401,14 +413,17 @@
 
 			if (invalidQuantity) {
 				message.textContent = "Could not complete trade - insufficient shares.";
+				transactionInProgress = false;
 				return;
 			}
 			if (invalidInput) {
 				message.textContent = "Invalid input - must be positive integers.";
+				transactionInProgress = false;
 				return;
 			}
 			if (!sales.length) {
 				message.textContent = "No shares selected to trade.";
+				transactionInProgress = false;
 				return;
 			}
 			try {
@@ -439,7 +454,7 @@
 					const currentShares = Number(sharesCell.dataset.value);
 					const valueCell = holding.querySelector(".value");
 
-					const availableShares = Math.floor(getBalance() / price);
+					const availableShares = price > 0 ? Math.floor(updatedBalance / price) : 0;
 					buyInput.max = availableShares;
 
 					const sale = sales.find((el) => el.symbol == symbol);
@@ -476,11 +491,19 @@
 				holdings.forEach((holding) => {
 					const buyInput = holding.querySelector(".buy-input");
 					const sellInput = holding.querySelector(".sell-input");
-					if (buyInput.max > 0) {
+					if (Number(buyInput.max) > 0) {
 						buyInput.disabled = false;
+						buyInput.min = 1;
+					} else {
+						buyInput.disabled = true;
+						buyInput.min = 0;
 					}
-					if (sellInput.max > 0) {
+					if (Number(sellInput.max) > 0) {
 						sellInput.disabled = false;
+						sellInput.min = 1;
+					} else {
+						sellInput.disabled = true;
+						sellInput.min = 0;
 					}
 				});
 				transactionInProgress = false;
@@ -492,12 +515,28 @@
 		input.addEventListener("input", (event) => {
 			let buySum = 0;
 			let countNaN = 0;
+			const balance = getBalance();
 			buyInputs.forEach((input) => {
 				const price = Number(input.closest("tr").querySelector(".price").dataset.value);
+				const value = Number(input.value) || 0;
 				if (isNaN(input.valueAsNumber)) countNaN += 1;
-				buySum += price * Number(input.value);
+				buySum += price * value;
 			});
 			buyTotal.textContent = countNaN === buyInputs.length ? "" : `$${buySum.toFixed(2)}`;
+
+			buyInputs.forEach((input) => {
+				const price = Number(input.closest("tr").querySelector(".price").dataset.value);
+				const value = Number(input.value) || 0;
+
+				const remaining = balance - buySum + price * value;
+				const availableShares = price > 0 ? Math.max(0, Math.floor(remaining / price)) : 0;
+				input.max = availableShares;
+				if (availableShares > 0) {
+					input.min = 1;
+				} else {
+					input.min = 0;
+				}
+			});
 		});
 	});
 
@@ -507,8 +546,9 @@
 			let countNaN = 0;
 			sellInputs.forEach((input) => {
 				const price = Number(input.closest("tr").querySelector(".price").dataset.value);
+				const value = Number(input.value) || 0;
 				if (isNaN(input.valueAsNumber)) countNaN += 1;
-				sellSum += price * Number(input.value);
+				sellSum += price * value;
 			});
 			sellTotal.textContent = countNaN === sellInputs.length ? "" : `$${sellSum.toFixed(2)}`;
 		});
