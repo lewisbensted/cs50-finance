@@ -52,7 +52,7 @@
 						<li class="nav-item"><a class="nav-link" href="/history">History</a></li>
 					</ul>
 					<ul class="navbar-nav ms-auto mt-2">
-						<li class="nav-item"><a class="nav-link" href="/logout">Log Out</a></li>
+						<li class="nav-item"><a class="nav-link logout-button" href="/logout">Log Out</a></li>
 					</ul>
 					{% else %}
 					<ul class="navbar-nav ms-auto mt-2">
@@ -84,6 +84,35 @@
 				<input name="fragment" type="hidden" />
 			</form>
 			<script>
+				localStorage.setItem("interval", 3000);
+
+				window.fetchBalance = async () => {
+					const existing = localStorage.getItem("balance");
+					if (existing) return JSON.parse(existing);
+					try {
+						const res = await fetch("/balance");
+						const data = await res.json();
+						if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`);
+						if (!data || typeof data?.balance != "number" || Number.isNaN(data.balance))
+							throw new Error("Invalid or missing balance");
+
+						localStorage.setItem("balance", JSON.stringify(data.balance));
+						return data.balance;
+					} catch (error) {
+						console.error(error);
+						localStorage.removeItem("balance");
+						return null;
+					}
+				};
+
+				window.setBalance = (balance) => {
+					if (typeof balance === "number" && !Number.isNaN(balance)) {
+						localStorage.setItem("balance", JSON.stringify(balance));
+					} else {
+						console.warn("Skipping invalid balance:", balance);
+					}
+				};
+
 				document.addEventListener("DOMContentLoaded", async function () {
 					// Adapted from https://stackoverflow.com/a/10162353
 					const html =
@@ -98,14 +127,10 @@
 						'form[action="https://validator.w3.org/check"] > input[name="fragment"]'
 					).value = html;
 
-					try {
-						const res = await fetch("/balance");
-						if (res.ok) {
-							const balance = await res.json();
-							localStorage.setItem("balance", balance);
-						} else {
-						}
-					} catch {}
+					document.querySelector(".logout-button").addEventListener("click", () => {
+						localStorage.removeItem("balance");
+						console.log(localStorage.getItem("balance"));
+					});
 				});
 			</script>
 		</footer>

@@ -64,7 +64,7 @@ def fetch_balance():
     row = cursor.fetchone()
     if not row:
         return ({"error": "User not found"}), 404
-    return jsonify(row["cash"])
+    return jsonify({'balance' :row["cash"]})
 
 
 @stocks_bp.route("/history")

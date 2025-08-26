@@ -72,22 +72,20 @@
 				</div>
 			</td>
 			<td>
-				<form class="sell-form" style="display: flex">
+				<form class="sell-form">
 					<button type="submit" class="btn btn-primary sell-button" disabled>Sell</button>
-					<div class="d-flex justify-content-center sell-spinner" style="display: none">
-						<div class="spinner-border text-primary" role="status">
-							<span class="visually-hidden">Loading...</span>
-						</div>
+
+					<div class="spinner-border text-primary sell-spinner" role="status">
+						<span class="visually-hidden">Loading...</span>
 					</div>
 				</form>
 			</td>
 			<td>
-				<form class="buy-form" style="display: flex">
+				<form class="buy-form">
 					<button type="submit" class="btn btn-primary buy-button" disabled>Buy</button>
-					<div class="d-flex justify-content-center buy-spinner" style="display: none">
-						<div class="spinner-border text-primary" role="status">
-							<span class="visually-hidden">Loading...</span>
-						</div>
+
+					<div class="spinner-border text-primary buy-spinner" role="status">
+						<span class="visually-hidden">Loading...</span>
 					</div>
 				</form>
 			</td>
@@ -100,457 +98,469 @@
 {% endif %}
 
 <script>
-	const message = document.getElementById("message");
+	document.addEventListener("DOMContentLoaded", async () => {
+		const message = document.getElementById("message");
+		const interval = JSON.parse(localStorage.getItem("interval"));
 
-	const getBalance = () => JSON.parse(localStorage.getItem("balance"));
-	const setBalance = (balance) => localStorage.setItem("balance", balance);
+		const balanceCell = document.getElementById("balance");
+		const totalCell = document.getElementById("total");
 
-	const balanceCell = document.getElementById("balance");
-	const totalCell = document.getElementById("total");
-	balanceCell.textContent = `$${getBalance().toFixed(2)}`;
+		let balance = await fetchBalance();
+		if (balance) {
+			balanceCell.textContent = `$${balance.toFixed(2)}`;
+		} else {
+			balanceCell.textContent = `$--`;
+			balanceCell.style.color = "red";
+		}
 
-	const buySpinner = document.querySelector(".buy-spinner");
-	const buyButton = document.querySelector(".buy-button");
+		const buySpinner = document.querySelector(".buy-spinner");
+		const buyButton = document.querySelector(".buy-button");
 
-	const sellSpinner = document.querySelector(".sell-spinner");
-	const sellButton = document.querySelector(".sell-button");
+		const sellSpinner = document.querySelector(".sell-spinner");
+		const sellButton = document.querySelector(".sell-button");
 
-	const buyForm = document.querySelector(".buy-form");
-	const sellForm = document.querySelector(".sell-form");
+		const buyForm = document.querySelector(".buy-form");
+		const sellForm = document.querySelector(".sell-form");
 
-	const buyTotal = document.querySelector(".buy-total");
-	const sellTotal = document.querySelector(".sell-total");
+		const buyTotal = document.querySelector(".buy-total");
+		const sellTotal = document.querySelector(".sell-total");
 
-	const buyInputs = document.querySelectorAll(".buy-input");
-	const sellInputs = document.querySelectorAll(".sell-input");
+		const buyInputs = document.querySelectorAll(".buy-input");
+		const sellInputs = document.querySelectorAll(".sell-input");
 
-	const symbols = [];
-	let priceIntervalId;
-	let transactionInProgress;
+		const symbols = [];
+		let priceIntervalId;
+		let transactionInProgress;
 
-	const holdings = document.querySelectorAll(".holding");
-	holdings.forEach((el) => {
-		const symbolCell = el.querySelector(".symbol");
-		symbols.push(symbolCell.textContent);
-	});
-
-	const calculateTotal = () => {
-		let total = 0;
-		holdings.forEach((holding) => {
-			total += Number(holding.querySelector(".value").dataset.value);
+		const holdings = document.querySelectorAll(".holding");
+		holdings.forEach((el) => {
+			const symbolCell = el.querySelector(".symbol");
+			symbols.push(symbolCell.textContent);
 		});
-		return Number(total.toFixed(2));
-	};
 
-	const url = `/prices?symbols=${symbols.join(",")}`;
-
-	const fetchPrices = async () => {
-		const res = await fetch(url);
-		const data = await res.json().catch((error) => console.error(error));
-		if (!res.ok) {
-			throw new Error(data && data.error ? data.error : `Error ${res.status}: ${res.statusText}`);
-		}
-		if (data.length !== symbols.length) throw new Error("Missing data");
-
-		return data;
-	};
-
-	const updatePrices = async (isFirstFetch = false) => {
-		try {
-			let updated = 0;
-			const prices = await fetchPrices();
-
+		const calculateTotal = () => {
+			let total = 0;
 			holdings.forEach((holding) => {
-				const priceCell = holding.querySelector(".price");
-				const valueCell = holding.querySelector(".value");
-				const sharesCell = holding.querySelector(".current-shares");
-				const share = prices.find((el) => el.symbol == holding.querySelector(".symbol").textContent);
-
-				const buyInput = holding.querySelector(".buy-input");
-				const sellInput = holding.querySelector(".sell-input");
-
-				const price = Number(share?.price);
-				if (typeof price == "number" && !isNaN(price) && price > 0) {
-					const shares = Number(sharesCell.dataset.value);
-					const value = price * shares;
-
-					priceCell.style.color = "";
-					priceCell.dataset.value = price;
-					priceCell.textContent = `$${price.toFixed(2)}`;
-
-					valueCell.style.color = "";
-					valueCell.dataset.value = value;
-					valueCell.textContent = `$${value.toFixed(2)}`;
-
-					if (isFirstFetch) sellInput.disabled = false;
-
-					const availableShares = Math.floor(getBalance() / price);
-					buyInput.max = availableShares;
-					if (availableShares > 0) {
-						if (!transactionInProgress) buyInput.disabled = false;
-						buyInput.min = 1;
-					} else {
-						if (!transactionInProgress) buyInput.disabled = true;
-						buyInput.min = 0;
-					}
-
-					updated++;
-				} else {
-					console.warn(`Invalid price received for holding: ${share.symbol}`);
-					if (isFirstFetch) {
-						priceCell.textContent = `$--`;
-						valueCell.textContent = `$--`;
-					}
-					priceCell.style.color = "red";
-					valueCell.style.color = "red";
-					holding.querySelector(".sell-input").disabled = true;
-					holding.querySelector(".buy-input").disabled = true;
-				}
+				total += Number(holding.querySelector(".value").dataset.value);
 			});
-			totalCell.style.color = updated === holdings.length ? "" : "red";
-			const total = calculateTotal();
-			totalCell.textContent = isNaN(total) ? `$--` : `$${total.toFixed(2)}`;
-			if (isFirstFetch) {
-				sellButton.disabled = false;
-				buyButton.disabled = false;
+			return Number(total.toFixed(2));
+		};
+
+		const url = `/prices?symbols=${symbols.join(",")}`;
+
+		const fetchPrices = async () => {
+			const res = await fetch(url);
+			const data = await res.json().catch((error) => console.error(error));
+			if (!res.ok) {
+				throw new Error(data && data.error ? data.error : `Error ${res.status}: ${res.statusText}`);
 			}
-		} catch (error) {
-			console.error(error);
-			totalCell.style.color = "red";
-			buyButton.disabled = sellButton.disabled = true;
-			holdings.forEach((holding) => {
-				const priceCell = holding.querySelector(".price");
-				const valueCell = holding.querySelector(".value");
-				holding.querySelector(".sell-input").disabled = holding.querySelector(".buy-input").disabled = true;
-				priceCell.style.color = valueCell.style.color = "red";
-				if (isFirstFetch) {
-					priceCell.textContent = valueCell.textContent = totalCell.textContent = `$--`;
-				}
-			});
-		}
-	};
+			if (data.length !== symbols.length) throw new Error("Missing data");
 
-	if (symbols.length) {
-		updatePrices(true).then(() => {
-			sellFormListener();
-			buyFormListener();
-			if (priceIntervalId) clearInterval(priceIntervalId);
-			priceIntervalId = setInterval(() => {
-				updatePrices()
-					.then(() => {
-						if (!transactionInProgress) {
-							if (buyTotal.textContent) buyInputs[0].dispatchEvent(new Event("input"));
-							if (sellTotal.textContent) sellInputs[0].dispatchEvent(new Event("input"));
+			return data;
+		};
+
+		const updatePrices = async (isFirstFetch = false) => {
+			try {
+				let updated = 0;
+				const prices = await fetchPrices();
+
+				for (const holding of holdings) {
+					const priceCell = holding.querySelector(".price");
+					const valueCell = holding.querySelector(".value");
+					const sharesCell = holding.querySelector(".current-shares");
+					const share = prices.find((el) => el.symbol == holding.querySelector(".symbol").textContent);
+
+					const buyInput = holding.querySelector(".buy-input");
+					const sellInput = holding.querySelector(".sell-input");
+
+					const price = Number(share?.price);
+					if (typeof price == "number" && !isNaN(price) && price > 0) {
+						const shares = Number(sharesCell.dataset.value);
+						const value = price * shares;
+
+						priceCell.style.color = "";
+						priceCell.dataset.value = price;
+						priceCell.textContent = `$${price.toFixed(2)}`;
+
+						valueCell.style.color = "";
+						valueCell.dataset.value = value;
+						valueCell.textContent = `$${value.toFixed(2)}`;
+
+						if (isFirstFetch) sellInput.disabled = false;
+
+						const availableShares = Math.floor(balance / price);
+
+						buyInput.max = availableShares;
+						if (availableShares > 0) {
+							if (!transactionInProgress) buyInput.disabled = false;
+							buyInput.min = 1;
+						} else {
+							if (!transactionInProgress) buyInput.disabled = true;
+							buyInput.min = 0;
 						}
-					})
-					.catch((error) => console.error(error));
-			}, 5000);
-		});
-	} else {
-		document.querySelector("table").style.display = "none";
-		message.innerHTML = 'No holdings to display - go to the <a href="/search">Search</a> page to start trading.';
-	}
 
-	const buyFormListener = () => {
-		buyForm.addEventListener("submit", async (e) => {
-			e.preventDefault();
-			if (transactionInProgress) return;
-			transactionInProgress = true;
-			message.textContent = "";
-			const purchases = [];
-			let purchaseTotal = 0;
-			let invalidInput = false;
-			const holdings = document.querySelectorAll(".holding");
-			for (const holding of holdings) {
-				if (invalidInput) break;
-
-				const buyInput = holding.querySelector(".buy-input");
-				const currentShares = Number(holding.querySelector(".current-shares").dataset.value);
-				const quantity = Number(buyInput.value);
-				const symbol = holding.querySelector(".symbol").dataset.value;
-				const price = Number(holding.querySelector(".price").dataset.value);
-
-				purchaseTotal += quantity * price;
-				if (quantity < 0 || !Number.isInteger(quantity) || !buyInput.checkValidity()) {
-					invalidInput = true;
-					break;
-				}
-
-				if (quantity > 0) {
-					purchases.push({
-						symbol: symbol,
-						shares: quantity,
-					});
-				}
-			}
-			if (purchaseTotal > getBalance()) {
-				message.textContent = "Could not complete trade - insufficient funds.";
-				transactionInProgress = false;
-				return;
-			}
-			if (invalidInput) {
-				message.textContent = "Invalid input - must be positive integers.";
-				transactionInProgress = false;
-				return;
-			}
-			if (!purchases.length) {
-				message.textContent = "No shares selected to trade.";
-				transactionInProgress = false;
-				return;
-			}
-
-			try {
-				buySpinner.style.setProperty("display", "flex", "important");
-				buyButton.style.display = "none";
-				document.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
-				const res = await fetch("/buy", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify(purchases),
-				});
-				const data = await res.json();
-				if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
-				if (!data || !data.updated_balance) throw new Error("Missing data");
-				const updatedBalance = data.updated_balance;
-				message.textContent = "Purchase Successful!";
-				setBalance(updatedBalance);
-				balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
-				holdings.forEach((holding) => {
-					const buyInput = holding.querySelector(".buy-input");
-					const sellInput = holding.querySelector(".sell-input");
-					const symbol = holding.querySelector(".symbol").dataset.value;
-					const price = Number(holding.querySelector(".price").dataset.value);
-					const sharesCell = holding.querySelector(".current-shares");
-					const currentShares = Number(sharesCell.dataset.value);
-					const valueCell = holding.querySelector(".value");
-
-					const availableShares = price > 0 ? Math.floor(updatedBalance / price) : 0;
-					buyInput.max = availableShares;
-					buyInput.value = sellInput.value = "";
-
-					const purchase = purchases.find((el) => el.symbol == symbol);
-					if (purchase) {
-						const updatedShares = currentShares + purchase.shares;
-						const updatedValue = price * updatedShares;
-						sellInput.max = updatedShares;
-						sharesCell.textContent = updatedShares;
-						sharesCell.dataset.value = updatedShares;
-						valueCell.dataset.value = updatedValue;
-						valueCell.textContent = `$${updatedValue.toFixed(2)}`;
+						updated++;
+					} else {
+						console.warn(`Invalid price received for holding: ${share.symbol}`);
+						if (isFirstFetch) {
+							priceCell.textContent = `$--`;
+							valueCell.textContent = `$--`;
+						}
+						priceCell.style.color = "red";
+						valueCell.style.color = "red";
+						holding.querySelector(".sell-input").disabled = true;
+						holding.querySelector(".buy-input").disabled = true;
 					}
-				});
-				buyTotal.textContent = sellTotal.textContent = "";
+				}
+				totalCell.style.color = updated === holdings.length ? "" : "red";
 				const total = calculateTotal();
-				totalCell.dataset.value = total;
-				totalCell.textContent = `$${total.toFixed(2)}`;
+				totalCell.textContent = isNaN(total) ? `$--` : `$${total.toFixed(2)}`;
+				if (isFirstFetch) {
+					sellButton.disabled = false;
+					if (balance) buyButton.disabled = false;
+				}
 			} catch (error) {
-				console.error(error.message);
-				message.textContent = error.message == "Insufficient funds" ? error.message : "Unexpected error";
-			} finally {
-				buySpinner.style.setProperty("display", "none", "important");
-				buyButton.style.display = "";
-				sellButton.disabled = buyButton.disabled = false;
+				console.error(error);
+				totalCell.style.color = "red";
+				buyButton.disabled = sellButton.disabled = true;
 				holdings.forEach((holding) => {
-					const buyInput = holding.querySelector(".buy-input");
-					const sellInput = holding.querySelector(".sell-input");
-					if (Number(buyInput.max) > 0) {
-						buyInput.disabled = false;
-						buyInput.min = 1;
-					} else {
-						buyInput.disabled = true;
-						buyInput.min = 0;
-					}
-					if (Number(sellInput.max) > 0) {
-						sellInput.disabled = false;
-						sellInput.min = 1;
-					} else {
-						sellInput.disabled = true;
-						sellInput.min = 0;
+					const priceCell = holding.querySelector(".price");
+					const valueCell = holding.querySelector(".value");
+					holding.querySelector(".sell-input").disabled = holding.querySelector(".buy-input").disabled = true;
+					priceCell.style.color = valueCell.style.color = "red";
+					if (isFirstFetch) {
+						priceCell.textContent = valueCell.textContent = totalCell.textContent = `$--`;
 					}
 				});
-				transactionInProgress = false;
 			}
-		});
-	};
+		};
 
-	const sellFormListener = () => {
-		sellForm.addEventListener("submit", async (e) => {
-			e.preventDefault();
-			if (transactionInProgress) return;
-			transactionInProgress = true;
-			const sales = [];
-			const holdings = document.querySelectorAll(".holding");
-			message.textContent = "";
-			let invalidQuantity = false;
-			let invalidInput = false;
+		if (symbols.length) {
+			updatePrices(true).then(() => {
+				sellFormListener();
+				buyFormListener();
+				if (priceIntervalId) clearInterval(priceIntervalId);
+				priceIntervalId = setInterval(() => {
+					updatePrices()
+						.then(() => {
+							if (!transactionInProgress) {
+								if (buyTotal.textContent) buyInputs[0].dispatchEvent(new Event("input"));
+								if (sellTotal.textContent) sellInputs[0].dispatchEvent(new Event("input"));
+							}
+						})
+						.catch((error) => console.error(error));
+				}, interval);
+			});
+		} else {
+			document.querySelector("table").style.display = "none";
+			message.innerHTML =
+				'No holdings to display - go to the <a href="/search">Search</a> page to start trading.';
+		}
 
-			for (const holding of holdings) {
-				if (invalidQuantity || invalidInput) break;
+		const buyFormListener = () => {
+			buyForm.addEventListener("submit", async (e) => {
+				e.preventDefault();
+				if (transactionInProgress) return;
+				transactionInProgress = true;
+				message.textContent = "";
+				const purchases = [];
+				let purchaseTotal = 0;
+				let invalidInput = false;
+				const holdings = document.querySelectorAll(".holding");
+				for (const holding of holdings) {
+					if (invalidInput) break;
 
-				const sellInput = holding.querySelector(".sell-input");
-				const currentShares = Number(holding.querySelector(".current-shares").dataset.value);
-				const quantity = Number(sellInput.value);
-				const symbol = holding.querySelector(".symbol").dataset.value;
-
-				if (quantity > currentShares) {
-					invalidQuantity = true;
-					break;
-				}
-				if (quantity < 0 || !Number.isInteger(quantity) || !sellInput.checkValidity()) {
-					invalidInput = true;
-					break;
-				}
-
-				if (quantity > 0) {
-					sales.push({
-						symbol: symbol,
-						shares: quantity,
-					});
-				}
-			}
-
-			if (invalidQuantity) {
-				message.textContent = "Could not complete trade - insufficient shares.";
-				transactionInProgress = false;
-				return;
-			}
-			if (invalidInput) {
-				message.textContent = "Invalid input - must be positive integers.";
-				transactionInProgress = false;
-				return;
-			}
-			if (!sales.length) {
-				message.textContent = "No shares selected to trade.";
-				transactionInProgress = false;
-				return;
-			}
-			try {
-				sellSpinner.style.setProperty("display", "flex", "important");
-				sellButton.style.display = "none";
-				document.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
-				const res = await fetch("/sell", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify(sales),
-				});
-				const data = await res.json();
-				if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
-				if (!data || !data.updated_balance) throw new Error("Missing data");
-
-				const updatedBalance = data.updated_balance;
-				message.textContent = "Sale Successful!";
-				setBalance(updatedBalance);
-				balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
-				holdings.forEach((holding) => {
 					const buyInput = holding.querySelector(".buy-input");
-					const sellInput = holding.querySelector(".sell-input");
+					const currentShares = Number(holding.querySelector(".current-shares").dataset.value);
+					const quantity = Number(buyInput.value);
 					const symbol = holding.querySelector(".symbol").dataset.value;
 					const price = Number(holding.querySelector(".price").dataset.value);
-					const sharesCell = holding.querySelector(".current-shares");
-					const currentShares = Number(sharesCell.dataset.value);
-					const valueCell = holding.querySelector(".value");
 
-					const availableShares = price > 0 ? Math.floor(updatedBalance / price) : 0;
-					buyInput.max = availableShares;
+					purchaseTotal += quantity * price;
+					if (quantity < 0 || !Number.isInteger(quantity) || !buyInput.checkValidity()) {
+						invalidInput = true;
+						break;
+					}
 
-					const sale = sales.find((el) => el.symbol == symbol);
+					if (quantity > 0) {
+						purchases.push({
+							symbol: symbol,
+							shares: quantity,
+						});
+					}
+				}
+				if (purchaseTotal > balance) {
+					message.textContent = "Could not complete trade - insufficient funds.";
+					transactionInProgress = false;
+					return;
+				}
+				if (invalidInput) {
+					message.textContent = "Invalid input - must be positive integers.";
+					transactionInProgress = false;
+					return;
+				}
+				if (!purchases.length) {
+					message.textContent = "No shares selected to trade.";
+					transactionInProgress = false;
+					return;
+				}
 
-					sellInput.value = buyInput.value = "";
+				try {
+					buySpinner.style.setProperty("display", "flex", "important");
+					buyButton.style.display = "none";
+					document.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
+					const res = await fetch("/buy", {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify(purchases),
+					});
+					const data = await res.json();
+					if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
+					if (!data || !data.updated_balance) throw new Error("Missing data");
+					const updatedBalance = data.updated_balance;
+					message.textContent = "Purchase Successful!";
+					setBalance(updatedBalance);
+					balance = updatedBalance;
+					balanceCell.style.color = "";
+					balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
+					for (const holding of holdings) {
+						const buyInput = holding.querySelector(".buy-input");
+						const sellInput = holding.querySelector(".sell-input");
+						const symbol = holding.querySelector(".symbol").dataset.value;
+						const price = Number(holding.querySelector(".price").dataset.value);
+						const sharesCell = holding.querySelector(".current-shares");
+						const currentShares = Number(sharesCell.dataset.value);
+						const valueCell = holding.querySelector(".value");
 
-					if (sale) {
-						const updatedShares = currentShares - sale.shares;
-						const updatedValue = price * updatedShares;
+						const availableShares = price > 0 ? Math.floor(updatedBalance / price) : 0;
+						buyInput.max = availableShares;
+						buyInput.value = sellInput.value = "";
 
-						sharesCell.textContent = updatedShares;
-						sharesCell.dataset.value = updatedShares;
-						if (updatedShares > 0) {
+						const purchase = purchases.find((el) => el.symbol == symbol);
+						if (purchase) {
+							const updatedShares = currentShares + purchase.shares;
+							const updatedValue = price * updatedShares;
+							sellInput.max = updatedShares;
+							sharesCell.textContent = updatedShares;
+							sharesCell.dataset.value = updatedShares;
+							valueCell.dataset.value = updatedValue;
+							valueCell.textContent = `$${updatedValue.toFixed(2)}`;
+						}
+					}
+					buyTotal.textContent = sellTotal.textContent = "";
+					const total = calculateTotal();
+					totalCell.dataset.value = total;
+					totalCell.textContent = `$${total.toFixed(2)}`;
+				} catch (error) {
+					console.error(error.message);
+					message.textContent = error.message == "Insufficient funds" ? error.message : "Unexpected error";
+				} finally {
+					buySpinner.style.setProperty("display", "none", "important");
+					buyButton.style.display = "";
+					sellButton.disabled = buyButton.disabled = false;
+					holdings.forEach((holding) => {
+						const buyInput = holding.querySelector(".buy-input");
+						const sellInput = holding.querySelector(".sell-input");
+						if (Number(buyInput.max) > 0) {
+							buyInput.disabled = false;
+							buyInput.min = 1;
+						} else {
+							buyInput.disabled = true;
+							buyInput.min = 0;
+						}
+						if (Number(sellInput.max) > 0) {
+							sellInput.disabled = false;
+							sellInput.min = 1;
+						} else {
+							sellInput.disabled = true;
+							sellInput.min = 0;
+						}
+					});
+					transactionInProgress = false;
+				}
+			});
+		};
+
+		const sellFormListener = () => {
+			sellForm.addEventListener("submit", async (e) => {
+				e.preventDefault();
+				if (transactionInProgress) return;
+				transactionInProgress = true;
+				const sales = [];
+				const holdings = document.querySelectorAll(".holding");
+				message.textContent = "";
+				let invalidQuantity = false;
+				let invalidInput = false;
+
+				for (const holding of holdings) {
+					if (invalidQuantity || invalidInput) break;
+
+					const sellInput = holding.querySelector(".sell-input");
+					const currentShares = Number(holding.querySelector(".current-shares").dataset.value);
+					const quantity = Number(sellInput.value);
+					const symbol = holding.querySelector(".symbol").dataset.value;
+
+					if (quantity > currentShares) {
+						invalidQuantity = true;
+						break;
+					}
+					if (quantity < 0 || !Number.isInteger(quantity) || !sellInput.checkValidity()) {
+						invalidInput = true;
+						break;
+					}
+
+					if (quantity > 0) {
+						sales.push({
+							symbol: symbol,
+							shares: quantity,
+						});
+					}
+				}
+
+				if (invalidQuantity) {
+					message.textContent = "Could not complete trade - insufficient shares.";
+					transactionInProgress = false;
+					return;
+				}
+				if (invalidInput) {
+					message.textContent = "Invalid input - must be positive integers.";
+					transactionInProgress = false;
+					return;
+				}
+				if (!sales.length) {
+					message.textContent = "No shares selected to trade.";
+					transactionInProgress = false;
+					return;
+				}
+				try {
+					sellSpinner.style.setProperty("display", "flex", "important");
+					sellButton.style.display = "none";
+					document.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
+					const res = await fetch("/sell", {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify(sales),
+					});
+					const data = await res.json();
+					if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
+					if (!data || !data.updated_balance) throw new Error("Missing data");
+
+					const updatedBalance = data.updated_balance;
+					message.textContent = "Sale Successful!";
+					setBalance(updatedBalance);
+					balance = updatedBalance;
+					balanceCell.style.color = "";
+					balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
+					for (const holding of holdings) {
+						const buyInput = holding.querySelector(".buy-input");
+						const sellInput = holding.querySelector(".sell-input");
+						const symbol = holding.querySelector(".symbol").dataset.value;
+						const price = Number(holding.querySelector(".price").dataset.value);
+						const sharesCell = holding.querySelector(".current-shares");
+						const currentShares = Number(sharesCell.dataset.value);
+						const valueCell = holding.querySelector(".value");
+
+						const availableShares = price > 0 ? Math.floor(updatedBalance / price) : 0;
+						buyInput.max = availableShares;
+
+						const sale = sales.find((el) => el.symbol == symbol);
+
+						sellInput.value = buyInput.value = "";
+
+						if (sale) {
+							const updatedShares = currentShares - sale.shares;
+							const updatedValue = price * updatedShares;
+
+							sharesCell.textContent = updatedShares;
+							sharesCell.dataset.value = updatedShares;
+							if (updatedShares > 0) {
+								sellInput.disabled = false;
+							}
+							sellInput.max = updatedShares;
+							valueCell.dataset.value = updatedValue;
+							valueCell.textContent = `$${updatedValue.toFixed(2)}`;
+						} else {
 							sellInput.disabled = false;
 						}
-						sellInput.max = updatedShares;
-						valueCell.dataset.value = updatedValue;
-						valueCell.textContent = `$${updatedValue.toFixed(2)}`;
-					} else {
-						sellInput.disabled = false;
 					}
-				});
-				buyTotal.textContent = sellTotal.textContent = "";
-				const total = calculateTotal();
-				totalCell.dataset.value = total;
-				totalCell.textContent = `$${total.toFixed(2)}`;
-			} catch (error) {
-				console.error(error.message);
-				message.textContent = "Unexpected error";
-			} finally {
-				sellSpinner.style.setProperty("display", "none", "important");
-				sellButton.style.display = "";
-				buyButton.disabled = sellButton.disabled = false;
-				holdings.forEach((holding) => {
-					const buyInput = holding.querySelector(".buy-input");
-					const sellInput = holding.querySelector(".sell-input");
-					if (Number(buyInput.max) > 0) {
-						buyInput.disabled = false;
-						buyInput.min = 1;
-					} else {
-						buyInput.disabled = true;
-						buyInput.min = 0;
-					}
-					if (Number(sellInput.max) > 0) {
-						sellInput.disabled = false;
-						sellInput.min = 1;
-					} else {
-						sellInput.disabled = true;
-						sellInput.min = 0;
-					}
-				});
-				transactionInProgress = false;
-			}
-		});
-	};
-
-	buyInputs.forEach((input) => {
-		input.addEventListener("input", (event) => {
-			let buySum = 0;
-			let countNaN = 0;
-			const balance = getBalance();
-			buyInputs.forEach((input) => {
-				const price = Number(input.closest("tr").querySelector(".price").dataset.value);
-				const value = Number(input.value) || 0;
-				if (isNaN(input.valueAsNumber)) countNaN += 1;
-				buySum += price * value;
-			});
-			buyTotal.textContent = countNaN === buyInputs.length ? "" : `$${buySum.toFixed(2)}`;
-
-			buyInputs.forEach((input) => {
-				const price = Number(input.closest("tr").querySelector(".price").dataset.value);
-				const value = Number(input.value) || 0;
-
-				const remaining = balance - buySum + price * value;
-				const availableShares = price > 0 ? Math.max(0, Math.floor(remaining / price)) : 0;
-				input.max = availableShares;
-				if (availableShares > 0) {
-					input.min = 1;
-				} else {
-					input.min = 0;
+					buyTotal.textContent = sellTotal.textContent = "";
+					const total = calculateTotal();
+					totalCell.dataset.value = total;
+					totalCell.textContent = `$${total.toFixed(2)}`;
+				} catch (error) {
+					console.error(error.message);
+					message.textContent = "Unexpected error";
+				} finally {
+					sellSpinner.style.setProperty("display", "none", "important");
+					sellButton.style.display = "";
+					buyButton.disabled = sellButton.disabled = false;
+					holdings.forEach((holding) => {
+						const buyInput = holding.querySelector(".buy-input");
+						const sellInput = holding.querySelector(".sell-input");
+						if (Number(buyInput.max) > 0) {
+							buyInput.disabled = false;
+							buyInput.min = 1;
+						} else {
+							buyInput.disabled = true;
+							buyInput.min = 0;
+						}
+						if (Number(sellInput.max) > 0) {
+							sellInput.disabled = false;
+							sellInput.min = 1;
+						} else {
+							sellInput.disabled = true;
+							sellInput.min = 0;
+						}
+					});
+					transactionInProgress = false;
 				}
 			});
-		});
-	});
+		};
 
-	sellInputs.forEach((input) => {
-		input.addEventListener("input", (event) => {
-			let sellSum = 0;
-			let countNaN = 0;
-			sellInputs.forEach((input) => {
-				const price = Number(input.closest("tr").querySelector(".price").dataset.value);
-				const value = Number(input.value) || 0;
-				if (isNaN(input.valueAsNumber)) countNaN += 1;
-				sellSum += price * value;
+		buyInputs.forEach((input) => {
+			input.addEventListener("input", (event) => {
+				let buySum = 0;
+				let countNaN = 0;
+				buyInputs.forEach((input) => {
+					const price = Number(input.closest("tr").querySelector(".price").dataset.value);
+					const value = Number(input.value) || 0;
+					if (isNaN(input.valueAsNumber)) countNaN += 1;
+					buySum += price * value;
+				});
+				buyTotal.textContent = countNaN === buyInputs.length ? "" : `$${buySum.toFixed(2)}`;
+
+				buyInputs.forEach((input) => {
+					const price = Number(input.closest("tr").querySelector(".price").dataset.value);
+					const value = Number(input.value) || 0;
+
+					const remaining = balance - buySum + price * value;
+					const availableShares = price > 0 ? Math.max(0, Math.floor(remaining / price)) : 0;
+					input.max = availableShares;
+					if (availableShares > 0) {
+						input.min = 1;
+					} else {
+						input.min = 0;
+					}
+				});
 			});
-			sellTotal.textContent = countNaN === sellInputs.length ? "" : `$${sellSum.toFixed(2)}`;
+		});
+
+		sellInputs.forEach((input) => {
+			input.addEventListener("input", (event) => {
+				let sellSum = 0;
+				let countNaN = 0;
+				sellInputs.forEach((input) => {
+					const price = Number(input.closest("tr").querySelector(".price").dataset.value);
+					const value = Number(input.value) || 0;
+					if (isNaN(input.valueAsNumber)) countNaN += 1;
+					sellSum += price * value;
+				});
+				sellTotal.textContent = countNaN === sellInputs.length ? "" : `$${sellSum.toFixed(2)}`;
+			});
 		});
 	});
 </script>
