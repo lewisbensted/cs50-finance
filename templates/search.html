@@ -87,6 +87,7 @@
 	</tfoot>
 </table>
 <span id="message"></span>
+{% endblock %} {% block script%}
 
 <script>
 	document.addEventListener("DOMContentLoaded", async () => {
@@ -301,7 +302,7 @@
 				setBalance(updatedBalance);
 				balanceCell.style.color = "";
 				balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
-				balance=updatedBalance
+				balance = updatedBalance;
 				const updatedShares = Number(buyForm.current_shares.value) + shares;
 				buyForm.current_shares.value = sellForm.current_shares.value = updatedShares;
 				const updatedValue = Number(buyForm.price.value) * updatedShares;
@@ -383,7 +384,7 @@
 				setBalance(updatedBalance);
 				balanceCell.style.color = "";
 				balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
-				balance=updatedBalance
+				balance = updatedBalance;
 				const updatedShares = Number(sellForm.current_shares.value) - shares;
 				buyForm.current_shares.value = sellForm.current_shares.value = updatedShares;
 				const updatedValue = Number(sellForm.price.value) * updatedShares;

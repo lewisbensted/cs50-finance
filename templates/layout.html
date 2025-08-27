@@ -126,13 +126,20 @@
 					document.querySelector(
 						'form[action="https://validator.w3.org/check"] > input[name="fragment"]'
 					).value = html;
-
-					document.querySelector(".logout-button").addEventListener("click", () => {
-						localStorage.removeItem("balance");
-						console.log(localStorage.getItem("balance"));
-					});
 				});
 			</script>
 		</footer>
+		{% block script %}
+		<script>
+			document.addEventListener("DOMContentLoaded", () => {
+				const logoutButton = document.querySelector(".logout-button");
+				if (logoutButton) {
+					logoutButton.addEventListener("click", () => {
+						localStorage.removeItem("balance");
+					});
+				}
+			});
+		</script>
+		{% endblock %}
 	</body>
 </html>

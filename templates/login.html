@@ -21,6 +21,7 @@
 	</div>
 </form>
 <span id="message"></span>
+{% endblock %} {% block script %}
 <script>
 	const message = document.getElementById("message");
 	const loginButton = document.getElementById("login-button");
@@ -30,7 +31,7 @@
 		event.preventDefault();
 		loginButton.style.display = "none";
 		loginSpinner.style.setProperty("display", "flex", "important");
-		document.querySelectorAll("input, button").forEach(el=>el.disabled=true)
+		document.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
 		message.textContent = "";
 		try {
 			const res = await fetch("/login", {
@@ -61,8 +62,7 @@
 		} finally {
 			loginButton.style.display = "";
 			loginSpinner.style.setProperty("display", "none", "important");
-			document.querySelectorAll("input, button").forEach(el=>el.disabled=false)
-		
+			document.querySelectorAll("input, button").forEach((el) => (el.disabled = false));
 		}
 	});
 </script>

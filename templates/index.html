@@ -2,7 +2,7 @@
 <h1>Holdings</h1>
 <br />
 {% if holdings is not none %}
-<table>
+<table style="display: none">
 	<thead>
 		<tr>
 			<th>Company Name</th>
@@ -95,8 +95,7 @@
 <span id="message"></span>
 {% else %}
 <span>Error loading holdings</span>
-{% endif %}
-
+{% endif %} {% endblock %} {% block script%}
 <script>
 	document.addEventListener("DOMContentLoaded", async () => {
 		const message = document.getElementById("message");
@@ -127,6 +126,8 @@
 
 		const buyInputs = document.querySelectorAll(".buy-input");
 		const sellInputs = document.querySelectorAll(".sell-input");
+
+		const table = document.querySelector("table");
 
 		const symbols = [];
 		let priceIntervalId;
@@ -164,6 +165,8 @@
 				let updated = 0;
 				const prices = await fetchPrices();
 
+				const DOMupdates = [];
+
 				for (const holding of holdings) {
 					const priceCell = holding.querySelector(".price");
 					const valueCell = holding.querySelector(".value");
@@ -177,65 +180,80 @@
 					if (typeof price == "number" && !isNaN(price) && price > 0) {
 						const shares = Number(sharesCell.dataset.value);
 						const value = price * shares;
-
-						priceCell.style.color = "";
 						priceCell.dataset.value = price;
-						priceCell.textContent = `$${price.toFixed(2)}`;
-
-						valueCell.style.color = "";
 						valueCell.dataset.value = value;
-						valueCell.textContent = `$${value.toFixed(2)}`;
-
-						if (isFirstFetch) sellInput.disabled = false;
-
 						const availableShares = Math.floor(balance / price);
 
-						buyInput.max = availableShares;
-						if (availableShares > 0) {
-							if (!transactionInProgress) buyInput.disabled = false;
-							buyInput.min = 1;
-						} else {
-							if (!transactionInProgress) buyInput.disabled = true;
-							buyInput.min = 0;
-						}
+						DOMupdates.push(() => {
+							priceCell.style.color = "";
+							priceCell.textContent = `$${price.toFixed(2)}`;
+
+							valueCell.style.color = "";
+							valueCell.textContent = `$${value.toFixed(2)}`;
+
+							if (isFirstFetch) sellInput.disabled = false;
+
+							buyInput.max = availableShares;
+							if (availableShares > 0) {
+								if (!transactionInProgress) buyInput.disabled = false;
+								buyInput.min = 1;
+							} else {
+								if (!transactionInProgress) buyInput.disabled = true;
+								buyInput.min = 0;
+							}
+						});
 
 						updated++;
 					} else {
 						console.warn(`Invalid price received for holding: ${share.symbol}`);
-						if (isFirstFetch) {
-							priceCell.textContent = `$--`;
-							valueCell.textContent = `$--`;
-						}
-						priceCell.style.color = "red";
-						valueCell.style.color = "red";
-						holding.querySelector(".sell-input").disabled = true;
-						holding.querySelector(".buy-input").disabled = true;
+						DOMupdates.push(() => {
+							if (isFirstFetch) {
+								priceCell.textContent = `$--`;
+								valueCell.textContent = `$--`;
+							}
+							priceCell.style.color = "red";
+							valueCell.style.color = "red";
+							holding.querySelector(".sell-input").disabled = true;
+							holding.querySelector(".buy-input").disabled = true;
+						});
 					}
 				}
-				totalCell.style.color = updated === holdings.length ? "" : "red";
 				const total = calculateTotal();
-				totalCell.textContent = isNaN(total) ? `$--` : `$${total.toFixed(2)}`;
-				if (isFirstFetch) {
-					sellButton.disabled = false;
-					if (balance) buyButton.disabled = false;
-				}
-			} catch (error) {
-				console.error(error);
-				totalCell.style.color = "red";
-				buyButton.disabled = sellButton.disabled = true;
-				holdings.forEach((holding) => {
-					const priceCell = holding.querySelector(".price");
-					const valueCell = holding.querySelector(".value");
-					holding.querySelector(".sell-input").disabled = holding.querySelector(".buy-input").disabled = true;
-					priceCell.style.color = valueCell.style.color = "red";
+				DOMupdates.push(() => {
+					totalCell.style.color = updated === holdings.length ? "" : "red";
+					totalCell.textContent = isNaN(total) ? `$--` : `$${total.toFixed(2)}`;
 					if (isFirstFetch) {
-						priceCell.textContent = valueCell.textContent = totalCell.textContent = `$--`;
+						sellButton.disabled = false;
+						if (balance) buyButton.disabled = false;
 					}
 				});
+			} catch (error) {
+				console.error(error);
+				DOMupdates.push(() => {
+					totalCell.style.color = "red";
+					buyButton.disabled = sellButton.disabled = true;
+					holdings.forEach((holding) => {
+						const priceCell = holding.querySelector(".price");
+						const valueCell = holding.querySelector(".value");
+						holding.querySelector(".sell-input").disabled = holding.querySelector(
+							".buy-input"
+						).disabled = true;
+						priceCell.style.color = valueCell.style.color = "red";
+						if (isFirstFetch) {
+							priceCell.textContent = valueCell.textContent = totalCell.textContent = `$--`;
+						}
+					});
+				});
+			} finally {
+				requestAnimationFrame(() => {
+					for (const update of DOMupdates) {
+						update();
+					}})
 			}
 		};
 
 		if (symbols.length) {
+			table.style.display = "";
 			updatePrices(true).then(() => {
 				sellFormListener();
 				buyFormListener();
@@ -252,7 +270,6 @@
 				}, interval);
 			});
 		} else {
-			document.querySelector("table").style.display = "none";
 			message.innerHTML =
 				'No holdings to display - go to the <a href="/search">Search</a> page to start trading.';
 		}
@@ -305,6 +322,8 @@
 					return;
 				}
 
+				const DOMupdates = [];
+
 				try {
 					buySpinner.style.setProperty("display", "flex", "important");
 					buyButton.style.display = "none";
@@ -320,11 +339,9 @@
 					if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
 					if (!data || !data.updated_balance) throw new Error("Missing data");
 					const updatedBalance = data.updated_balance;
-					message.textContent = "Purchase Successful!";
 					setBalance(updatedBalance);
 					balance = updatedBalance;
-					balanceCell.style.color = "";
-					balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
+
 					for (const holding of holdings) {
 						const buyInput = holding.querySelector(".buy-input");
 						const sellInput = holding.querySelector(".sell-input");
@@ -333,49 +350,67 @@
 						const sharesCell = holding.querySelector(".current-shares");
 						const currentShares = Number(sharesCell.dataset.value);
 						const valueCell = holding.querySelector(".value");
-
-						const availableShares = price > 0 ? Math.floor(updatedBalance / price) : 0;
-						buyInput.max = availableShares;
-						buyInput.value = sellInput.value = "";
-
 						const purchase = purchases.find((el) => el.symbol == symbol);
+						const availableShares = price > 0 ? Math.floor(updatedBalance / price) : 0;
+
+						DOMupdates.push(() => {
+							buyInput.max = availableShares;
+							buyInput.value = sellInput.value = "";
+						});
+
 						if (purchase) {
 							const updatedShares = currentShares + purchase.shares;
 							const updatedValue = price * updatedShares;
-							sellInput.max = updatedShares;
-							sharesCell.textContent = updatedShares;
-							sharesCell.dataset.value = updatedShares;
-							valueCell.dataset.value = updatedValue;
-							valueCell.textContent = `$${updatedValue.toFixed(2)}`;
+
+							DOMupdates.push(() => {
+								sharesCell.dataset.value = updatedShares;
+								valueCell.dataset.value = updatedValue;
+								sellInput.max = updatedShares;
+								sharesCell.textContent = updatedShares;
+								valueCell.textContent = `$${updatedValue.toFixed(2)}`;
+							});
 						}
 					}
-					buyTotal.textContent = sellTotal.textContent = "";
 					const total = calculateTotal();
-					totalCell.dataset.value = total;
-					totalCell.textContent = `$${total.toFixed(2)}`;
+
+					DOMupdates.push(() => {
+						message.textContent = "Purchase Successful!";
+						balanceCell.style.color = "";
+						balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
+						buyTotal.textContent = sellTotal.textContent = "";
+						totalCell.dataset.value = total;
+						totalCell.textContent = `$${total.toFixed(2)}`;
+					});
 				} catch (error) {
 					console.error(error.message);
 					message.textContent = error.message == "Insufficient funds" ? error.message : "Unexpected error";
 				} finally {
-					buySpinner.style.setProperty("display", "none", "important");
-					buyButton.style.display = "";
-					sellButton.disabled = buyButton.disabled = false;
-					holdings.forEach((holding) => {
-						const buyInput = holding.querySelector(".buy-input");
-						const sellInput = holding.querySelector(".sell-input");
-						if (Number(buyInput.max) > 0) {
-							buyInput.disabled = false;
-							buyInput.min = 1;
-						} else {
-							buyInput.disabled = true;
-							buyInput.min = 0;
-						}
-						if (Number(sellInput.max) > 0) {
-							sellInput.disabled = false;
-							sellInput.min = 1;
-						} else {
-							sellInput.disabled = true;
-							sellInput.min = 0;
+					DOMupdates.push(() => {
+						buySpinner.style.setProperty("display", "none", "important");
+						buyButton.style.display = "";
+						sellButton.disabled = buyButton.disabled = false;
+						holdings.forEach((holding) => {
+							const buyInput = holding.querySelector(".buy-input");
+							const sellInput = holding.querySelector(".sell-input");
+							if (Number(buyInput.max) > 0) {
+								buyInput.disabled = false;
+								buyInput.min = 1;
+							} else {
+								buyInput.disabled = true;
+								buyInput.min = 0;
+							}
+							if (Number(sellInput.max) > 0) {
+								sellInput.disabled = false;
+								sellInput.min = 1;
+							} else {
+								sellInput.disabled = true;
+								sellInput.min = 0;
+							}
+						});
+					});
+					requestAnimationFrame(() => {
+						for (const update of DOMupdates) {
+							update();
 						}
 					});
 					transactionInProgress = false;
@@ -434,6 +469,9 @@
 					transactionInProgress = false;
 					return;
 				}
+
+				const DOMupdates = [];
+
 				try {
 					sellSpinner.style.setProperty("display", "flex", "important");
 					sellButton.style.display = "none";
@@ -450,11 +488,8 @@
 					if (!data || !data.updated_balance) throw new Error("Missing data");
 
 					const updatedBalance = data.updated_balance;
-					message.textContent = "Sale Successful!";
 					setBalance(updatedBalance);
 					balance = updatedBalance;
-					balanceCell.style.color = "";
-					balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
 					for (const holding of holdings) {
 						const buyInput = holding.querySelector(".buy-input");
 						const sellInput = holding.querySelector(".sell-input");
@@ -463,57 +498,66 @@
 						const sharesCell = holding.querySelector(".current-shares");
 						const currentShares = Number(sharesCell.dataset.value);
 						const valueCell = holding.querySelector(".value");
-
-						const availableShares = price > 0 ? Math.floor(updatedBalance / price) : 0;
-						buyInput.max = availableShares;
-
 						const sale = sales.find((el) => el.symbol == symbol);
+						const availableShares = price > 0 ? Math.floor(updatedBalance / price) : 0;
 
-						sellInput.value = buyInput.value = "";
+						DOMupdates.push(() => {
+							buyInput.max = availableShares;
+							sellInput.value = buyInput.value = "";
+						});
 
 						if (sale) {
 							const updatedShares = currentShares - sale.shares;
 							const updatedValue = price * updatedShares;
-
-							sharesCell.textContent = updatedShares;
-							sharesCell.dataset.value = updatedShares;
-							if (updatedShares > 0) {
-								sellInput.disabled = false;
-							}
-							sellInput.max = updatedShares;
-							valueCell.dataset.value = updatedValue;
-							valueCell.textContent = `$${updatedValue.toFixed(2)}`;
-						} else {
-							sellInput.disabled = false;
+							DOMupdates.push(() => {
+								valueCell.dataset.value = updatedValue;
+								sharesCell.dataset.value = updatedShares;
+								sharesCell.textContent = updatedShares;
+								sellInput.max = updatedShares;
+								valueCell.textContent = `$${updatedValue.toFixed(2)}`;
+							});
 						}
 					}
-					buyTotal.textContent = sellTotal.textContent = "";
 					const total = calculateTotal();
-					totalCell.dataset.value = total;
-					totalCell.textContent = `$${total.toFixed(2)}`;
+
+					DOMupdates.push(() => {
+						message.textContent = "Sale Successful!";
+						balanceCell.style.color = "";
+						balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
+						buyTotal.textContent = sellTotal.textContent = "";
+						totalCell.dataset.value = total;
+						totalCell.textContent = `$${total.toFixed(2)}`;
+					});
 				} catch (error) {
 					console.error(error.message);
 					message.textContent = "Unexpected error";
 				} finally {
-					sellSpinner.style.setProperty("display", "none", "important");
-					sellButton.style.display = "";
-					buyButton.disabled = sellButton.disabled = false;
-					holdings.forEach((holding) => {
-						const buyInput = holding.querySelector(".buy-input");
-						const sellInput = holding.querySelector(".sell-input");
-						if (Number(buyInput.max) > 0) {
-							buyInput.disabled = false;
-							buyInput.min = 1;
-						} else {
-							buyInput.disabled = true;
-							buyInput.min = 0;
-						}
-						if (Number(sellInput.max) > 0) {
-							sellInput.disabled = false;
-							sellInput.min = 1;
-						} else {
-							sellInput.disabled = true;
-							sellInput.min = 0;
+					DOMupdates.push(() => {
+						sellSpinner.style.setProperty("display", "none", "important");
+						sellButton.style.display = "";
+						buyButton.disabled = sellButton.disabled = false;
+						holdings.forEach((holding) => {
+							const buyInput = holding.querySelector(".buy-input");
+							const sellInput = holding.querySelector(".sell-input");
+							if (Number(buyInput.max) > 0) {
+								buyInput.disabled = false;
+								buyInput.min = 1;
+							} else {
+								buyInput.disabled = true;
+								buyInput.min = 0;
+							}
+							if (Number(sellInput.max) > 0) {
+								sellInput.disabled = false;
+								sellInput.min = 1;
+							} else {
+								sellInput.disabled = true;
+								sellInput.min = 0;
+							}
+						});
+					});
+					requestAnimationFrame(() => {
+						for (const update of DOMupdates) {
+							update();
 						}
 					});
 					transactionInProgress = false;

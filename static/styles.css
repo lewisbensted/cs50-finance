@@ -46,8 +46,8 @@ table {
 	width: 6ch;
 }
 
-form {
-	display: inline-block;
+.buy-form,.sell-form {
+	display: flex;
 	align-items: center;
 	justify-content: center;
 	height: 50px;
