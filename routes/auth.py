@@ -9,6 +9,7 @@ from flask import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 import sqlite3
+import re
 
 from db import get_db
 
@@ -70,8 +71,10 @@ def register():
         db = get_db()
         cursor = db.cursor()
 
-        try:
+        passwordExp1 = r"(?=.*?[a-zA-Z])(?=.*?[0-9])(?=.*?[$&+,:;=?@#|'<>.^*.()%!-/\\]).+$"
+        passwordExp2 = r"\S*$";
 
+        try:
             data = request.get_json()
         
             if not data:
@@ -80,12 +83,23 @@ def register():
             username = data.get("username", "").strip()
             password = data.get("password", "")
             confirmation = data.get("confirmation", "")
+
+
            
             if not username:
                 return jsonify({"error": "Username not provided"}), 400
+            
+            if not len(username) >= 3:
+                return jsonify({"error": "Username not long enough"}), 400
 
             if not password or not confirmation:
                 return jsonify({"error": "Password(s) not provided"}), 400
+            
+            if not re.fullmatch(passwordExp1, password):
+                return jsonify({"error": "Password must contain a number, letter and special character"}), 400
+            
+            if not re.fullmatch(passwordExp2, password):
+                return jsonify({"error": "Password cannot contain spaces"}), 400
 
             if password != confirmation:
                 return jsonify({"error": "Passwords do not match"}), 400

@@ -135,8 +135,9 @@
 							const res = await fetch("/logout", { method: "POST" });
 							if (!res.ok) throw new Error(`Logout failed: ${res.status}`);
 							window.balance = null;
-						} catch {
-							console.error(err);
+							window.location.href = "/";
+						} catch (error) {
+							console.error(error);
 						}
 					});
 				}
