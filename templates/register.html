@@ -16,6 +16,57 @@
 	<div class="mb-3">
 		<input class="form-control mx-auto w-auto" name="confirmation" placeholder="Confirm password" type="password" />
 	</div>
-	<button class="btn btn-primary" type="submit">Register</button>
+	<button class="btn btn-primary register-button" type="submit">Register</button>
+	<div class="d-flex justify-content-center" style="display: none">
+		<div class="spinner-border text-primary register-spinner" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+	</div>
 </form>
+<span class="message"></span>
+{% endblock %} {% block script %}
+<script>
+	const message = document.querySelector(".message");
+	const registerButton = document.querySelector(".register-button");
+	const registerSpinner = document.querySelector(".register-spinner");
+	const registerForm = document.querySelector("form");
+	registerForm.addEventListener("submit", async (event) => {
+		event.preventDefault();
+		registerButton.style.display = "none";
+		registerSpinner.style.setProperty("display", "flex", "important");
+		document.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
+		message.textContent = "";
+		try {
+			const res = await fetch("/register", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					username: registerForm.username.value,
+					password: registerForm.password.value,
+					confirmation: registerForm.confirmation.value,
+				}),
+			});
+			if (!res.ok) {
+				const data = await res.json();
+				if ([400, 409].includes(res.status) && data.error !== "Missing request body") {
+					message.textContent = data.error;
+				} else {
+					throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
+				}
+				return;
+			}
+			message.textContent = "Registration successful, redirecting...";
+			setTimeout(() => (window.location.href = "/login"), 1200);
+		} catch (error) {
+			console.error(error);
+			message.textContent = "Unexpected error";
+		} finally {
+			registerButton.style.display = "";
+			registerSpinner.style.setProperty("display", "none", "important");
+			document.querySelectorAll("input, button").forEach((el) => (el.disabled = false));
+		}
+	});
+</script>
 {% endblock %}

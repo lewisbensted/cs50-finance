@@ -64,7 +64,7 @@ def fetch_balance():
     row = cursor.fetchone()
     if not row:
         return ({"error": "User not found"}), 404
-    return jsonify({'balance' :row["cash"]})
+    return jsonify({'balance' : row["cash"]})
 
 
 @stocks_bp.route("/history")
@@ -84,7 +84,7 @@ def history():
         transactions = cursor.fetchall()
         return render_template("history.html", transactions=transactions)
     except Exception as e:
-        print(e)
+        current_app.logger.exception(e)
         return ({"error": "Unexpected error"}), 500
 
 
@@ -185,7 +185,7 @@ def buy():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         db.rollback()
-        print(e)
+        current_app.logger.exception(e)
         return jsonify({"error": "Unexpected error"}), 500
 
 
@@ -292,5 +292,5 @@ def sell():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         db.rollback()
-        print(e)
+        current_app.logger.exception(e)
         return jsonify({"error": "Unexpected error"}), 500

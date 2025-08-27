@@ -1,10 +1,10 @@
 from flask import (
     Blueprint,
+    current_app,
     render_template,
     request,
     redirect,
     session,
-    flash,
     jsonify,
 )
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -20,13 +20,11 @@ def login():
     if request.method == "POST":
         db = get_db()
         cursor = db.cursor()
-
         try:
-            data = request.get_json()
-        
-            if not data:
-                return jsonify({"error": "Missing request body"}), 400
-
+            data = request.get_json() 
+            if not data: 
+                return jsonify({"error": "Missing request body"}), 400 
+            
             username = data.get("username", "").strip()
             password = data.get("password", "")
 
@@ -44,9 +42,9 @@ def login():
 
             session["user_id"] = user["id"]
 
-            return redirect("/")
+            return jsonify({"success": True, "message": "Login successful"}), 200
         except Exception as e:
-            print(e)
+            current_app.logger.exception(e)
             return jsonify({"error": "Unexpected error"}), 500
     else:
         if session.get("user_id"):
@@ -69,13 +67,20 @@ def register():
             return redirect("/")
         return render_template("register.html")
     else:
-        username = request.form.get("username")
-        password = request.form.get("password")
-        confirmation = request.form.get("confirmation")
+        db = get_db()
+        cursor = db.cursor()
 
         try:
-            db = get_db()
-            cursor = db.cursor()
+
+            data = request.get_json()
+        
+            if not data:
+                return jsonify({"error": "Missing request body"}), 400
+
+            username = data.get("username", "").strip()
+            password = data.get("password", "")
+            confirmation = data.get("confirmation", "")
+           
             if not username:
                 return jsonify({"error": "Username not provided"}), 400
 
@@ -93,11 +98,10 @@ def register():
             )
             db.commit()
 
-            flash("Registration successful", "success")
-            return redirect("/login")
+            return jsonify({"success": True, "message": "Registration successful"}), 201
 
         except sqlite3.IntegrityError:
             return jsonify({"error": "Username already exists"}), 409
         except Exception as e:
-            print(e)
+            current_app.logger.exception(e)
             return jsonify({"error": "Unexpected error"}), 500

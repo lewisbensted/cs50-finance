@@ -161,11 +161,10 @@
 		};
 
 		const updatePrices = async (isFirstFetch = false) => {
+			const DOMupdates = [];
 			try {
 				let updated = 0;
 				const prices = await fetchPrices();
-
-				const DOMupdates = [];
 
 				for (const holding of holdings) {
 					const priceCell = holding.querySelector(".price");

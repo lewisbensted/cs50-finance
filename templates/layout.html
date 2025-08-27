@@ -64,12 +64,6 @@
 			</div>
 		</nav>
 
-		{% set messages = get_flashed_messages() %} {% if messages %}
-		<header>
-			<div class="alert alert-primary mb-0 text-center" role="alert">{{ messages | join(" ") }}</div>
-		</header>
-		{% endif %}
-
 		<main class="container py-5 text-center">{% block main %}{% endblock %}</main>
 
 		<footer class="mb-5">
@@ -86,9 +80,11 @@
 			<script>
 				localStorage.setItem("interval", 3000);
 
+				window.balance = null;
+
 				window.fetchBalance = async () => {
-					const existing = localStorage.getItem("balance");
-					if (existing) return JSON.parse(existing);
+					if (window.balance !== null) return window.balance;
+
 					try {
 						const res = await fetch("/balance");
 						const data = await res.json();
@@ -96,18 +92,17 @@
 						if (!data || typeof data?.balance != "number" || Number.isNaN(data.balance))
 							throw new Error("Invalid or missing balance");
 
-						localStorage.setItem("balance", JSON.stringify(data.balance));
+						window.balance = data.balance;
 						return data.balance;
 					} catch (error) {
 						console.error(error);
-						localStorage.removeItem("balance");
 						return null;
 					}
 				};
 
 				window.setBalance = (balance) => {
 					if (typeof balance === "number" && !Number.isNaN(balance)) {
-						localStorage.setItem("balance", JSON.stringify(balance));
+						window.balance = balance;
 					} else {
 						console.warn("Skipping invalid balance:", balance);
 					}
@@ -134,8 +129,15 @@
 			document.addEventListener("DOMContentLoaded", () => {
 				const logoutButton = document.querySelector(".logout-button");
 				if (logoutButton) {
-					logoutButton.addEventListener("click", () => {
-						localStorage.removeItem("balance");
+					logoutButton.addEventListener("click", async (e) => {
+						e.preventDefault();
+						try {
+							const res = await fetch("/logout", { method: "POST" });
+							if (!res.ok) throw new Error(`Logout failed: ${res.status}`);
+							window.balance = null;
+						} catch {
+							console.error(err);
+						}
 					});
 				}
 			});

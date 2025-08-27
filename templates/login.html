@@ -13,18 +13,18 @@
 	<div class="mb-3">
 		<input class="form-control mx-auto w-auto" name="password" placeholder="Password" type="password" />
 	</div>
-	<button class="btn btn-primary" type="submit" id="login-button">Log In</button>
-	<div class="d-flex justify-content-center login-spinner" style="display: none">
-		<div class="spinner-border text-primary" role="status" id="login-spinner">
+	<button class="btn btn-primary login-button" type="submit">Log In</button>
+	<div class="d-flex justify-content-center" style="display: none">
+		<div class="spinner-border text-primary login-spinner" role="status">
 			<span class="visually-hidden">Loading...</span>
 		</div>
 	</div>
 </form>
-<span id="message"></span>
+<span class="message"></span>
 {% endblock %} {% block script %}
 <script>
-	const message = document.getElementById("message");
-	const loginButton = document.getElementById("login-button");
+	const message = document.querySelector(".message");
+	const loginButton = document.querySelector(".login-button");
 	const loginSpinner = document.querySelector(".login-spinner");
 	const loginForm = document.querySelector("form");
 	loginForm.addEventListener("submit", async (event) => {
@@ -44,10 +44,6 @@
 					password: loginForm.password.value,
 				}),
 			});
-			if (res.redirected) {
-				window.location.href = res.url;
-				return;
-			}
 			if (!res.ok) {
 				const data = await res.json();
 				if ([400, 401].includes(res.status) && data.error !== "Missing request body") {
@@ -55,7 +51,9 @@
 				} else {
 					throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
 				}
+				return
 			}
+			window.location.href = '/';
 		} catch (error) {
 			console.error(error);
 			message.textContent = "Unexpected error";
