@@ -7,6 +7,7 @@ from flask import (
     session,
     jsonify,
 )
+from extensions import limiter
 from werkzeug.security import check_password_hash, generate_password_hash
 import sqlite3
 import re
@@ -17,6 +18,7 @@ auth_bp = Blueprint("auth", __name__)
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
+@limiter.limit("5 per minute", methods=["POST"])
 def login():
     if request.method == "POST":
         db = get_db()
@@ -61,8 +63,8 @@ def logout():
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
+@limiter.limit("10 per hour", methods=["POST"])
 def register():
-
     if request.method == "GET":
         if session.get("user_id"):
             return redirect("/")

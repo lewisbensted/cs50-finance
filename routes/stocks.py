@@ -9,11 +9,13 @@ from flask import (
 from errors import BadRequestError, NotFoundError
 from db import fetch_holdings, get_db
 from helpers import login_required, lookup
+from extensions import limiter
 
 stocks_bp = Blueprint("stocks", __name__)
 
 
 @stocks_bp.route("/prices")
+@limiter.limit("60 per minute")
 @login_required
 def fetch_prices():
     symbols_str = request.args.get("symbols")
@@ -23,9 +25,9 @@ def fetch_prices():
     symbols = symbols_str.split(",")
 
     for symbol in symbols:
-        quote = lookup(symbol)
-        if quote:
-            updated_prices.append(quote)
+        info = lookup(symbol)
+        if info:
+            updated_prices.append(info)
     if len(symbols) == 1 and len(updated_prices) == 0:
         return ({"error": "Symbol not found"}), 404
 
@@ -95,9 +97,9 @@ def search():
 
 
 @stocks_bp.route("/buy", methods=["POST"])
+@limiter.limit("30 per minute")
 @login_required
 def buy():
-
     data = request.get_json()
     if not data:
         return jsonify({"error": "Missing request body"}), 400
@@ -190,9 +192,9 @@ def buy():
 
 
 @stocks_bp.route("/sell", methods=["POST"])
+@limiter.limit("30 per minute")
 @login_required
 def sell():
-
     data = request.get_json()
     if not data:
         return jsonify({"error": "Missing request body"}), 400

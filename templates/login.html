@@ -46,7 +46,7 @@
 			});
 			if (!res.ok) {
 				const data = await res.json();
-				if ([400, 401].includes(res.status) && data.error !== "Missing request body") {
+				if ([400, 401, 429].includes(res.status) && data.error !== "Missing request body") {
 					message.textContent = data.error;
 				} else {
 					throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);

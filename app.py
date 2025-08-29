@@ -1,12 +1,13 @@
 from flask import Flask
 from flask_session import Session
-
+from extensions import init_limiter
 from db import init_app
 from routes.auth import auth_bp
 from routes.stocks import stocks_bp
 
 app = Flask(__name__)
 init_app(app)
+init_limiter(app)
 
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
