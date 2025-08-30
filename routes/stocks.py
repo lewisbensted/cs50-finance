@@ -8,7 +8,7 @@ from flask import (
 )
 from errors import BadRequestError, NotFoundError
 from db import fetch_holdings, get_db
-from helpers import login_required, lookup
+from helpers import login_required, lookup, validate_transaction
 from extensions import limiter
 
 stocks_bp = Blueprint("stocks", __name__)
@@ -30,7 +30,6 @@ def fetch_prices():
             updated_prices.append(info)
     if len(symbols) == 1 and len(updated_prices) == 0:
         return ({"error": "Symbol not found"}), 404
-
     return jsonify(updated_prices), 200
 
 
@@ -66,12 +65,12 @@ def fetch_balance():
     row = cursor.fetchone()
     if not row:
         return ({"error": "User not found"}), 404
-    return jsonify({'balance' : row["cash"]})
+    return jsonify({"balance": row["cash"]})
 
 
-@stocks_bp.route("/history")
+@stocks_bp.route("/transactions")
 @login_required
-def history():
+def transactions():
     db = get_db()
     cursor = db.cursor()
     try:
@@ -84,7 +83,7 @@ def history():
             (session["user_id"],),
         )
         transactions = cursor.fetchall()
-        return render_template("history.html", transactions=transactions)
+        return render_template("transactions.html", transactions=transactions)
     except Exception as e:
         current_app.logger.exception(e)
         return ({"error": "Unexpected error"}), 500
@@ -101,35 +100,13 @@ def search():
 @login_required
 def buy():
     data = request.get_json()
-    if not data:
-        return jsonify({"error": "Missing request body"}), 400
+    if not data or not isinstance(data, dict):
+        return jsonify({"error": "Missing or invalid request body"}), 400
 
-    for purchase in data:
-        if "symbol" not in purchase or not purchase["symbol"]:
-            return (
-                jsonify({"error": "Incorrect data format - symbol not provided"}),
-                400,
-            )
-        if "shares" not in purchase:
-            return (
-                jsonify({"error": "Incorrect data format - shares not provided"}),
-                400,
-            )
-        try:
-            shares = int(purchase.get("shares"))
-            if shares < 1:
-                return (
-                    jsonify(
-                        {"error": "Incorrect data format - shares must be positive"}
-                    ),
-                    400,
-                )
-            purchase["shares"] = shares
-        except (TypeError, ValueError):
-            return (
-                jsonify({"error": "Incorrect data format - shares must be an integer"}),
-                400,
-            )
+    valid, invalid = validate_transaction(data)
+
+    successful = []
+    failed = []
 
     db = get_db()
     cursor = db.cursor()
@@ -141,17 +118,36 @@ def buy():
             raise NotFoundError("User not found")
         cash = row_cash["cash"]
 
-        for purchase in data:
+        transaction_cache = {}
+        total = 0
+
+        for purchase in valid:
             symbol = purchase["symbol"].upper()
             shares = purchase["shares"]
+
             info = lookup(symbol)
             if not info:
-                raise NotFoundError(f"Symbol not found: {symbol}")
+                purchase["error"] = "Symbol not found"
+                failed.append(purchase)
+                continue
+            transaction_cache[symbol] = {
+                "price": info["price"],
+                "name": info["name"],
+                "shares": shares,
+                "transaction": purchase,
+            }
+
+            price = transaction_cache[symbol]["price"]
+            total += price * shares
+
+        if total > cash:
+            raise BadRequestError("Insufficient funds")
+
+        for symbol, info in transaction_cache.items():
+            shares = info["shares"]
             price = info["price"]
             company_name = info["name"]
-            cash -= price * shares
-            if cash < 0:
-                raise BadRequestError("Insufficient funds")
+
             cursor.execute(
                 "INSERT INTO transactions "
                 "(user_id, symbol, company_name,shares, price, transaction_type) "
@@ -172,18 +168,33 @@ def buy():
                 "SET shares = shares + excluded.shares;",
                 (session["user_id"], symbol, shares, company_name),
             )
+            successful.append(info["transaction"])
+        cash -= total
         cursor.execute(
             "UPDATE users SET cash = ? WHERE id = ?",
             (cash, session["user_id"]),
         )
         db.commit()
-        return jsonify({"updated_balance": cash}), 200
+        if len(successful):
+            return (
+                jsonify(
+                    {
+                        "updated_balance": cash,
+                        "successful": successful,
+                        "failed": failed + invalid,
+                    }
+                ),
+                200,
+            )
+        else:
+            return (
+                jsonify({"error": "No trades executed", "failed": failed + invalid}),
+                422,
+            )
 
     except NotFoundError as e:
-        db.rollback()
         return jsonify({"error": str(e)}), 404
     except BadRequestError as e:
-        db.rollback()
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         db.rollback()
@@ -196,33 +207,15 @@ def buy():
 @login_required
 def sell():
     data = request.get_json()
-    if not data:
-        return jsonify({"error": "Missing request body"}), 400
+    if not data or not isinstance(data, dict):
+        return jsonify({"error": "Missing or invalid request body"}), 400
 
-    for sale in data:
-        if "symbol" not in sale or not sale["symbol"]:
-            return (
-                jsonify({"error": "Incorrect data format - symbol not provided"}),
-                400,
-            )
-        if "shares" not in sale:
-            return (
-                jsonify({"error": "Incorrect data format - shares not provided"}),
-                400,
-            )
-        try:
-            shares = int(sale.get("shares"))
-            if shares < 1:
-                return (
-                    jsonify({"error": "Incorrect data format - shares must positive"}),
-                    400,
-                )
-            sale["shares"] = shares
-        except (TypeError, ValueError):
-            return (
-                jsonify({"error": "Incorrect data format - shares must be an integer"}),
-                400,
-            )
+    valid, invalid = validate_transaction(data)
+
+    successful = []
+    failed = []
+
+    transaction_cache = {}
 
     db = get_db()
     cursor = db.cursor()
@@ -232,15 +225,26 @@ def sell():
         row_cash = cursor.fetchone()
         if not row_cash:
             raise NotFoundError("User not found")
-
         cash = row_cash["cash"]
 
-        for sale in data:
+        for sale in valid:
             symbol = sale["symbol"].upper()
             shares = sale["shares"]
+
             info = lookup(symbol)
             if not info:
-                raise NotFoundError(f"Symbol not found: {symbol}")
+                sale["error"] = "Symbol not found"
+                failed.append(sale)
+                continue
+            transaction_cache[symbol] = {
+                "price": info["price"],
+                "name": info["name"],
+                "shares": shares,
+                "transaction": sale,
+            }
+
+        for symbol, info in transaction_cache.items():
+            shares = info["shares"]
             price = info["price"]
             company_name = info["name"]
 
@@ -250,12 +254,17 @@ def sell():
             )
             row_holding = cursor.fetchone()
             if not row_holding:
-                raise NotFoundError(f"Holding not found: {symbol}")
+                info["transaction"]["error"] = "Holding not found"
+                failed.append(info["transaction"])
+                continue
 
-            cash += price * shares
             current_shares = row_holding["shares"]
             if shares > current_shares:
-                raise BadRequestError(f"Insufficient shares: {symbol}")
+                info["transaction"]["error"] = "Insufficient shares"
+                failed.append(info["transaction"])
+                continue
+
+            cash += price * shares
 
             cursor.execute(
                 "INSERT INTO transactions "
@@ -279,19 +288,34 @@ def sell():
                 "DELETE FROM holdings WHERE shares = 0 AND user_id = ? AND symbol = ?",
                 (session["user_id"], symbol),
             )
+
+            successful.append(info["transaction"])
         cursor.execute(
             "UPDATE users SET cash = ? WHERE id = ?",
             (cash, session["user_id"]),
         )
         db.commit()
-        return jsonify({"updated_balance": cash}), 200
+
+        if len(successful):
+            return (
+                jsonify(
+                    {
+                        "updated_balance": cash,
+                        "successful": successful,
+                        "failed": failed + invalid,
+                    }
+                ),
+                200,
+            )
+        else:
+            return (
+                jsonify({"error": "No trades executed", "failed": failed + invalid}),
+                422,
+            )
 
     except NotFoundError as e:
         db.rollback()
         return jsonify({"error": str(e)}), 404
-    except BadRequestError as e:
-        db.rollback()
-        return jsonify({"error": str(e)}), 400
     except Exception as e:
         db.rollback()
         current_app.logger.exception(e)

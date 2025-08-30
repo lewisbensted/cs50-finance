@@ -37,7 +37,11 @@ table {
 	font-weight: bold;
 }
 
-.sell-spinner, .buy-spinner, .quote-spinner, .login-spinner, .register-spinner {
+.sell-spinner,
+.buy-spinner,
+.quote-spinner,
+.login-spinner,
+.register-spinner {
 	display: none !important;
 }
 
@@ -46,9 +50,34 @@ table {
 	width: 6ch;
 }
 
-.buy-form,.sell-form {
+.buy-form,
+.sell-form {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	height: 50px;
 }
+
+.table-container {
+	max-height: 58vh;
+	overflow-y: auto;
+}
+
+.table-container table {
+	width: 100%;
+}
+
+.table-container thead {
+	position: sticky;
+	top: 0;
+	background-color: #ffffff;
+	z-index: 10;
+}
+
+.table-container tfoot {
+	position: sticky;
+	bottom: 0;
+	background-color: #ffffff;
+	z-index: 10;
+}
+

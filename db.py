@@ -43,8 +43,7 @@ def fetch_holdings(user_id, symbol=None):
 
     if symbol:
         cursor.execute(
-            "SELECT symbol, shares FROM holdings "
-            "WHERE user_id = ? AND symbol = ?",
+            "SELECT symbol, shares FROM holdings " "WHERE user_id = ? AND symbol = ?",
             (user_id, symbol),
         )
         row = cursor.fetchone()

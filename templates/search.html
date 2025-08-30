@@ -20,82 +20,85 @@
 	</div>
 </form>
 
-<table style="display: none">
-	<thead>
-		<tr>
-			<th>Company Name</th>
-			<th>Symbol</th>
-			<th>Shares</th>
-			<th>Price</th>
-			<th>Value</th>
-		</tr>
-	</thead>
-	<tbody>
-		<tr class="holding">
-			<td class="name"></td>
-			<td class="symbol"></td>
-			<td class="current-shares"></td>
-			<td class="price"></td>
-			<td class="value"></td>
-			<td><input type="number" name="shares" class="sell-input" disabled step="1" form="sell-form" /></td>
-			<td><input type="number" name="shares" class="buy-input" disabled step="1" form="buy-form" /></td>
-		</tr>
-	</tbody>
-	<tfoot>
-		<tr>
-			<td></td>
-			<td></td>
-			<td></td>
-			<td class="footer">Total</td>
-			<td></td>
-			<td class="sell-total"></td>
-			<td class="buy-total"></td>
-		</tr>
-		<tr>
-			<td></td>
-			<td></td>
-			<td></td>
-			<td class="footer">Balance</td>
-			<td id="balance">
-				<div class="spinner-border spinner-border-sm text-primary" role="status">
-					<span class="visually-hidden">Loading...</span>
-				</div>
-			</td>
-			<td>
-				<form class="sell-form">
-					<input type="hidden" name="symbol" />
-					<input type="hidden" name="price" />
-					<input type="hidden" name="current_shares" />
-					<button type="submit" class="btn btn-primary sell-button" disabled>Sell</button>
-					<div class="spinner-border text-primary sell-spinner" role="status">
+<div class="table-container">
+	<table style="display: none">
+		<thead>
+			<tr>
+				<th>Company Name</th>
+				<th>Symbol</th>
+				<th>Shares</th>
+				<th>Price</th>
+				<th>Value</th>
+				<th>Sell</th>
+				<th>Buy</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr class="holding">
+				<td class="name"></td>
+				<td class="symbol"></td>
+				<td class="current-shares"></td>
+				<td class="price"></td>
+				<td class="value"></td>
+				<td><input type="number" name="shares" class="sell-input" disabled step="1" form="sell-form" /></td>
+				<td><input type="number" name="shares" class="buy-input" disabled step="1" form="buy-form" /></td>
+			</tr>
+		</tbody>
+		<tfoot>
+			<tr>
+				<td></td>
+				<td></td>
+				<td></td>
+				<td class="footer">Total</td>
+				<td></td>
+				<td class="sell-total"></td>
+				<td class="buy-total"></td>
+			</tr>
+			<tr>
+				<td></td>
+				<td></td>
+				<td></td>
+				<td class="footer">Balance</td>
+				<td class="balance">
+					<div class="spinner-border spinner-border-sm text-primary" role="status">
 						<span class="visually-hidden">Loading...</span>
 					</div>
-				</form>
-			</td>
-			<td>
-				<form class="buy-form">
-					<input type="hidden" name="symbol" />
-					<input type="hidden" name="price" />
-					<input type="hidden" name="current_shares" />
-					<button type="submit" class="btn btn-primary buy-button" disabled>Buy</button>
-					<div class="spinner-border text-primary buy-spinner" role="status">
-						<span class="visually-hidden">Loading...</span>
-					</div>
-				</form>
-			</td>
-		</tr>
-	</tfoot>
-</table>
-<span id="message"></span>
+				</td>
+				<td>
+					<form class="sell-form">
+						<input type="hidden" name="symbol" />
+						<input type="hidden" name="price" />
+						<input type="hidden" name="current_shares" />
+						<button type="submit" class="btn btn-primary sell-button" disabled>Sell</button>
+						<div class="spinner-border text-primary sell-spinner" role="status">
+							<span class="visually-hidden">Loading...</span>
+						</div>
+					</form>
+				</td>
+				<td>
+					<form class="buy-form">
+						<input type="hidden" name="symbol" />
+						<input type="hidden" name="price" />
+						<input type="hidden" name="current_shares" />
+						<button type="submit" class="btn btn-primary buy-button" disabled>Buy</button>
+						<div class="spinner-border text-primary buy-spinner" role="status">
+							<span class="visually-hidden">Loading...</span>
+						</div>
+					</form>
+				</td>
+			</tr>
+		</tfoot>
+	</table>
+</div>
+<span class="message"></span>
 {% endblock %} {% block script%}
 
 <script>
 	document.addEventListener("DOMContentLoaded", async () => {
-		const message = document.getElementById("message");
+		const message = document.querySelector(".message");
 		const interval = JSON.parse(localStorage.getItem("interval"));
 
-		const balanceCell = document.getElementById("balance");
-		const totalCell = document.getElementById("total");
+		const balanceCell = document.querySelector(".balance");
 
 		let balance = await fetchBalance();
 		if (balance) {
@@ -281,17 +284,14 @@
 				buySpinner.style.setProperty("display", "flex", "important");
 				buyButton.style.display = "none";
 				document.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
+				const purchase={}
+				purchase[buyForm.symbol.value] = shares
 				const res = await fetch("/buy", {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
 					},
-					body: JSON.stringify([
-						{
-							symbol: buyForm.symbol.value,
-							shares: shares,
-						},
-					]),
+					body: JSON.stringify(purchase),
 				});
 				const data = await res.json();
 				if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
@@ -363,17 +363,14 @@
 				sellSpinner.style.setProperty("display", "flex", "important");
 				sellButton.style.display = "none";
 				document.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
+				const sale={}
+				sale[sellForm.symbol.value] = shares
 				const res = await fetch("/sell", {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
 					},
-					body: JSON.stringify([
-						{
-							symbol: sellForm.symbol.value,
-							shares: shares,
-						},
-					]),
+					body: JSON.stringify(sale),
 				});
 				const data = await res.json();
 				if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);

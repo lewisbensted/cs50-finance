@@ -24,10 +24,10 @@ def login():
         db = get_db()
         cursor = db.cursor()
         try:
-            data = request.get_json() 
-            if not data: 
-                return jsonify({"error": "Missing request body"}), 400 
-            
+            data = request.get_json()
+            if not data:
+                return jsonify({"error": "Missing request body"}), 400
+
             username = data.get("username", "").strip()
             password = data.get("password", "")
 
@@ -56,7 +56,7 @@ def login():
         return render_template("login.html")
 
 
-@auth_bp.route("/logout")
+@auth_bp.route("/logout", methods=["POST"])
 def logout():
     session.clear()
     return redirect("/")
@@ -73,12 +73,14 @@ def register():
         db = get_db()
         cursor = db.cursor()
 
-        passwordExp1 = r"(?=.*?[a-zA-Z])(?=.*?[0-9])(?=.*?[$&+,:;=?@#|'<>.^*.()%!-/\\]).+$"
-        passwordExp2 = r"\S*$";
+        passwordExp1 = (
+            r"(?=.*?[a-zA-Z])(?=.*?[0-9])(?=.*?[$&+,:;=?@#|'<>.^*.()%!-/\\]).+$"
+        )
+        passwordExp2 = r"\S*$"
 
         try:
             data = request.get_json()
-        
+
             if not data:
                 return jsonify({"error": "Missing request body"}), 400
 
@@ -86,20 +88,25 @@ def register():
             password = data.get("password", "")
             confirmation = data.get("confirmation", "")
 
-
-           
             if not username:
                 return jsonify({"error": "Username not provided"}), 400
-            
+
             if not len(username) >= 3:
                 return jsonify({"error": "Username not long enough"}), 400
 
             if not password or not confirmation:
                 return jsonify({"error": "Password(s) not provided"}), 400
-            
+
             if not re.fullmatch(passwordExp1, password):
-                return jsonify({"error": "Password must contain a number, letter and special character"}), 400
-            
+                return (
+                    jsonify(
+                        {
+                            "error": "Password must contain a number, letter and special character"
+                        }
+                    ),
+                    400,
+                )
+
             if not re.fullmatch(passwordExp2, password):
                 return jsonify({"error": "Password cannot contain spaces"}), 400
 

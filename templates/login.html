@@ -51,9 +51,9 @@
 				} else {
 					throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
 				}
-				return
+				return;
 			}
-			window.location.href = '/';
+			window.location.href = "/";
 		} catch (error) {
 			console.error(error);
 			message.textContent = "Unexpected error";

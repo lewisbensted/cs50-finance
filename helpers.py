@@ -31,3 +31,35 @@ def lookup(symbol):
     except (KeyError, ValueError) as e:
         print(f"Data parsing error: {e}")
     return None
+
+
+def validate_transaction(data):
+    valid = []
+    invalid = []
+
+    for symbol, shares in data.items():
+        symbol = symbol.strip()
+        if not isinstance(symbol, str) or not symbol:
+            invalid.append(
+                {"symbol": symbol, "shares": shares, "error": "Invalid symbol"}
+            )
+            continue
+        try:
+            if isinstance(shares, bool):
+                raise ValueError
+            shares = float(shares)
+            if not shares.is_integer() or shares < 1:
+                raise ValueError
+
+            valid.append({"symbol": symbol, "shares": int(shares)})
+        except (TypeError, ValueError):
+            invalid.append(
+                {
+                    "symbol": symbol,
+                    "shares": shares,
+                    "error": "Invalid share - must be a positive integer",
+                }
+            )
+            continue
+
+    return valid, invalid
