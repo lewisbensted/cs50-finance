@@ -125,9 +125,6 @@
 		const buyTotal = document.querySelector(".buy-total");
 		const sellTotal = document.querySelector(".sell-total");
 
-		const buyInputs = document.querySelectorAll(".buy-input");
-		const sellInputs = document.querySelectorAll(".sell-input");
-
 		const table = document.querySelector("table");
 
 		let priceIntervalId;
@@ -146,7 +143,6 @@
 		const cachedHoldings = {};
 		for (const holding of holdings) {
 			const symbol = holding.querySelector(".symbol").dataset.value;
-
 			cachedHoldings[symbol] = {
 				priceCell: holding.querySelector(".price"),
 				valueCell: holding.querySelector(".value"),
@@ -155,6 +151,8 @@
 				sellInput: holding.querySelector(".sell-input"),
 			};
 		}
+
+		const allHoldings = Object.values(cachedHoldings);
 
 		const url = `/prices?symbols=${Object.keys(cachedHoldings).join(",")}`;
 
@@ -172,6 +170,7 @@
 
 			try {
 				let updated = 0;
+				let available = 0;
 				const shares = await fetchPrices();
 
 				const cachedShares = {};
@@ -179,35 +178,36 @@
 
 				for (const [symbol, mappedHolding] of Object.entries(cachedHoldings)) {
 					const price = Number(cachedShares[symbol]);
+					const { sharesCell, priceCell, valueCell, buyInput, sellInput } = mappedHolding;
 					if (typeof price === "number" && !isNaN(price) && price > 0) {
-						const shares = Number(mappedHolding.sharesCell.dataset.value);
+						const shares = Number(sharesCell.dataset.value);
 						const value = price * shares;
-						mappedHolding.priceCell.dataset.value = price;
-						mappedHolding.valueCell.dataset.value = value;
+						priceCell.dataset.value = price;
+						valueCell.dataset.value = value;
 
 						let buyTotal = 0;
-						for (const mH of Object.values(cachedHoldings)) {
+						for (const mH of allHoldings) {
 							buyTotal += Number(mH.buyInput.value || 0) * Number(mH.priceCell.dataset.value || 0);
 						}
 
-						const remaining = balance - buyTotal + price * (Number(mappedHolding.buyInput.value) || 0);
+						const remaining = balance - buyTotal + price * (Number(buyInput.value) || 0);
 						const availableShares = Math.floor(remaining / price);
 						const availableSharesMax = Math.floor(balance / price);
+						if (availableSharesMax > 0) available++;
 
 						DOMupdates.push(() => {
-							mappedHolding.priceCell.style.color = "";
-							mappedHolding.priceCell.textContent = `$${price.toFixed(2)}`;
+							priceCell.style.color = "";
+							priceCell.textContent = `$${price.toFixed(2)}`;
 
-							mappedHolding.valueCell.style.color = "";
-							mappedHolding.valueCell.textContent = `$${value.toFixed(2)}`;
+							valueCell.style.color = "";
+							valueCell.textContent = `$${value.toFixed(2)}`;
 
-							if (isFirstFetch) mappedHolding.sellInput.disabled = false;
+							if (isFirstFetch) sellInput.disabled = false;
 
-							mappedHolding.buyInput.max = availableShares;
+							buyInput.max = availableShares;
 
-							if (!transactionInProgress)
-								mappedHolding.buyInput.disabled = availableSharesMax > 0 ? false : true;
-							mappedHolding.buyInput.min = availableShares > 0 ? 1 : 0;
+							if (!transactionInProgress) buyInput.disabled = availableSharesMax > 0 ? false : true;
+							buyInput.min = availableShares > 0 ? 1 : 0;
 						});
 
 						updated++;
@@ -215,13 +215,13 @@
 						console.warn(`Invalid price received for holding: ${symbol}`);
 						DOMupdates.push(() => {
 							if (isFirstFetch) {
-								mappedHolding.priceCell.textContent = `$--`;
-								mappedHolding.valueCell.textContent = `$--`;
+								priceCell.textContent = `$--`;
+								valueCell.textContent = `$--`;
 							}
-							mappedHolding.priceCell.style.color = "red";
-							mappedHolding.valueCell.style.color = "red";
-							mappedHolding.sellInput.disabled = true;
-							mappedHolding.buyInput.disabled = true;
+							priceCell.style.color = "red";
+							valueCell.style.color = "red";
+							sellInput.disabled = true;
+							buyInput.disabled = true;
 						});
 					}
 				}
@@ -231,7 +231,9 @@
 					totalCell.textContent = isNaN(total) ? `$--` : `$${total.toFixed(2)}`;
 					if (isFirstFetch) {
 						sellButton.disabled = false;
-						if (balance) buyButton.disabled = false;
+						if (balance && available > 0) buyButton.disabled = false;
+					} else {
+						buyButton.disabled = available === 0;
 					}
 				});
 			} catch (error) {
@@ -239,15 +241,13 @@
 				DOMupdates.push(() => {
 					totalCell.style.color = "red";
 					buyButton.disabled = sellButton.disabled = true;
-					for (const mappedHolding of Object.values(cachedHoldings)) {
-						mappedHolding.priceCell.style.color = mappedHolding.valueCell.style.color = "red";
-						mappedHolding.buyInput.disabled = true;
-						mappedHolding.sellInput.disabled = true;
+					for (const mappedHolding of allHoldings) {
+						const { sharesCell, priceCell, valueCell, buyInput, sellInput } = mappedHolding;
+						priceCell.style.color = valueCell.style.color = "red";
+						buyInput.disabled = true;
+						sellInput.disabled = true;
 						if (isFirstFetch) {
-							mappedHolding.priceCell.textContent =
-								mappedHolding.valueCell.textContent =
-								totalCell.textContent =
-									`$--`;
+							priceCell.textContent = valueCell.textContent = totalCell.textContent = `$--`;
 						}
 					}
 				});
@@ -270,8 +270,9 @@
 					updatePrices()
 						.then(() => {
 							if (!transactionInProgress) {
-								if (buyTotal.textContent) buyInputs[0].dispatchEvent(new InputEvent("input"));
-								if (sellTotal.textContent) sellInputs[0].dispatchEvent(new InputEvent("input"));
+								[firstHolding] = allHoldings;
+								if (buyTotal.textContent) firstHolding.buyInput.dispatchEvent(new Event("input"));
+								if (sellTotal.textContent) firstHolding.sellInput.dispatchEvent(new Event("input"));
 							}
 						})
 						.catch((error) => console.error(error));
@@ -295,11 +296,17 @@
 				for (const [symbol, mappedHolding] of Object.entries(cachedHoldings)) {
 					if (invalidInput) break;
 
-					const price = Number(mappedHolding.priceCell.dataset.value);
-					const quantity = Number(mappedHolding.buyInput.value);
+					const { sharesCell, priceCell, buyInput, sellInput } = mappedHolding;
+
+					const price = Number(priceCell.dataset.value);
+					const quantity = Number(buyInput.value);
 
 					purchaseTotal += quantity * price;
-					if (quantity < 0 || !Number.isInteger(quantity) || !mappedHolding.buyInput.checkValidity()) {
+					if (
+						quantity < 0 ||
+						!Number.isInteger(quantity) ||
+						(!buyInput.checkValidity() && buyInput.value !== "0")
+					) {
 						invalidInput = true;
 						break;
 					}
@@ -350,28 +357,36 @@
 						const symbol = trade.symbol;
 						const mappedHolding = cachedHoldings[symbol];
 						if (!mappedHolding) continue;
-						const price = Number(mappedHolding.priceCell.dataset.value);
-						const currentShares = Number(mappedHolding.sharesCell.dataset.value);
-						const shares = trade.shares;
-						const availableShares = price > 0 ? Math.floor(updatedBalance / price) : 0;
 
-						DOMupdates.push(() => {
-							mappedHolding.buyInput.max = availableShares;
-							mappedHolding.buyInput.value = mappedHolding.sellInput.value = "";
-						});
+						const { sharesCell, priceCell, valueCell, buyInput, sellInput } = mappedHolding;
+
+						const price = Number(priceCell.dataset.value);
+						const currentShares = Number(sharesCell.dataset.value);
+						const shares = trade.shares;
 
 						if (shares) {
 							const updatedShares = currentShares + shares;
 							const updatedValue = price * updatedShares;
 
 							DOMupdates.push(() => {
-								mappedHolding.sharesCell.dataset.value = updatedShares;
-								mappedHolding.valueCell.dataset.value = updatedValue;
-								mappedHolding.sellInput.max = updatedShares;
-								mappedHolding.sharesCell.textContent = updatedShares;
-								mappedHolding.valueCell.textContent = `$${updatedValue.toFixed(2)}`;
+								sharesCell.dataset.value = updatedShares;
+								valueCell.dataset.value = updatedValue;
+								sellInput.max = updatedShares;
+								sharesCell.textContent = updatedShares;
+								valueCell.textContent = `$${updatedValue.toFixed(2)}`;
 							});
 						}
+					}
+					let available = 0;
+					for (const mappedHolding of allHoldings) {
+						const { buyInput, sellInput, priceCell } = mappedHolding;
+						const price = Number(priceCell.dataset.value);
+						const availableShares = price > 0 ? Math.floor(updatedBalance / price) : 0;
+						if (availableShares > 0) available++;
+						DOMupdates.push(() => {
+							buyInput.max = availableShares;
+							buyInput.value = sellInput.value = "";
+						});
 					}
 					const total = calculateTotal();
 
@@ -382,30 +397,27 @@
 						buyTotal.textContent = sellTotal.textContent = "";
 						totalCell.dataset.value = total;
 						totalCell.textContent = `$${total.toFixed(2)}`;
+						buyButton.disabled = available === 0;
 					});
 				} catch (error) {
 					console.error(error.message);
+					buyButton.disabled = false;
 					message.textContent = error.message == "Insufficient funds" ? error.message : "Unexpected error";
 				} finally {
 					DOMupdates.push(() => {
 						buySpinner.style.setProperty("display", "none", "important");
 						buyButton.style.display = "";
-						sellButton.disabled = buyButton.disabled = false;
-						for (const mappedHolding of Object.values(cachedHoldings)) {
-							if (Number(mappedHolding.buyInput.max) > 0) {
-								mappedHolding.buyInput.disabled = false;
-								mappedHolding.buyInput.min = 1;
-							} else {
-								mappedHolding.buyInput.disabled = true;
-								mappedHolding.buyInput.min = 0;
-							}
-							if (Number(mappedHolding.sellInput.max) > 0) {
-								mappedHolding.sellInput.disabled = false;
-								mappedHolding.sellInput.min = 1;
-							} else {
-								mappedHolding.sellInput.disabled = true;
-								mappedHolding.sellInput.min = 0;
-							}
+						sellButton.disabled = false;
+						for (const mappedHolding of allHoldings) {
+							const { buyInput, sellInput } = mappedHolding;
+
+							const buyMax = Number(buyInput.max) > 0;
+							buyInput.disabled = !buyMax;
+							buyInput.min = buyMax ? 1 : 0;
+
+							const sellMax = Number(sellInput.max) > 0;
+							sellInput.disabled = !sellMax;
+							sellInput.min = sellMax ? 1 : 0;
 						}
 					});
 					requestAnimationFrame(() => {
@@ -424,7 +436,6 @@
 				if (transactionInProgress) return;
 				transactionInProgress = true;
 				const sales = {};
-				const holdings = document.querySelectorAll(".holding");
 				message.textContent = "";
 				let invalidQuantity = false;
 				let invalidInput = false;
@@ -432,15 +443,21 @@
 				for (const [symbol, mappedHolding] of Object.entries(cachedHoldings)) {
 					if (invalidQuantity || invalidInput) break;
 
-					const price = Number(mappedHolding.priceCell.dataset.value);
-					const currentShares = Number(mappedHolding.sharesCell.dataset.value);
-					const quantity = Number(mappedHolding.sellInput.value);
+					const { sharesCell, priceCell, valueCell, buyInput, sellInput } = mappedHolding;
+
+					const price = Number(priceCell.dataset.value);
+					const currentShares = Number(sharesCell.dataset.value);
+					const quantity = Number(sellInput.value);
 
 					if (quantity > currentShares) {
 						invalidQuantity = true;
 						break;
 					}
-					if (quantity < 0 || !Number.isInteger(quantity) || !mappedHolding.sellInput.checkValidity()) {
+					if (
+						quantity < 0 ||
+						!Number.isInteger(quantity) ||
+						(!sellInput.checkValidity() && sellInput.value !== "0")
+					) {
 						invalidInput = true;
 						break;
 					}
@@ -493,28 +510,37 @@
 						const symbol = trade.symbol;
 						const mappedHolding = cachedHoldings[symbol];
 						if (!mappedHolding) continue;
-						const price = Number(mappedHolding.priceCell.dataset.value);
-						const currentShares = Number(mappedHolding.sharesCell.dataset.value);
+
+						const { sharesCell, priceCell, valueCell, buyInput, sellInput } = mappedHolding;
+
+						const price = Number(priceCell.dataset.value);
+						const currentShares = Number(sharesCell.dataset.value);
 
 						const shares = trade.shares;
-
-						const availableShares = price > 0 ? Math.floor(updatedBalance / price) : 0;
-
-						DOMupdates.push(() => {
-							mappedHolding.buyInput.max = availableShares;
-							mappedHolding.sellInput.value = mappedHolding.buyInput.value = "";
-						});
 
 						const updatedShares = currentShares - shares;
 						const updatedValue = price * updatedShares;
 						DOMupdates.push(() => {
-							mappedHolding.valueCell.dataset.value = updatedValue;
-							mappedHolding.sharesCell.dataset.value = updatedShares;
-							mappedHolding.sharesCell.textContent = updatedShares;
-							mappedHolding.sellInput.max = updatedShares;
-							mappedHolding.valueCell.textContent = `$${updatedValue.toFixed(2)}`;
+							valueCell.dataset.value = updatedValue;
+							sharesCell.dataset.value = updatedShares;
+							sharesCell.textContent = updatedShares;
+							sellInput.max = updatedShares;
+							valueCell.textContent = `$${updatedValue.toFixed(2)}`;
 						});
 					}
+					let available = 0;
+					for (const mappedHolding of allHoldings) {
+						const { priceCell, buyInput, sellInput } = mappedHolding;
+						const price = Number(priceCell.dataset.value);
+						const availableShares = price > 0 ? Math.floor(updatedBalance / price) : 0;
+						if (availableShares > 0) available++;
+
+						DOMupdates.push(() => {
+							buyInput.max = availableShares;
+							sellInput.value = buyInput.value = "";
+						});
+					}
+
 					const total = calculateTotal();
 
 					DOMupdates.push(() => {
@@ -524,30 +550,27 @@
 						buyTotal.textContent = sellTotal.textContent = "";
 						totalCell.dataset.value = total;
 						totalCell.textContent = `$${total.toFixed(2)}`;
+						buyButton.disabled = available === 0;
 					});
 				} catch (error) {
+					buyButton.disabled = false;
 					console.error(error.message);
 					message.textContent = "Unexpected error";
 				} finally {
 					DOMupdates.push(() => {
 						sellSpinner.style.setProperty("display", "none", "important");
 						sellButton.style.display = "";
-						buyButton.disabled = sellButton.disabled = false;
-						for (const mappedHolding of Object.values(cachedHoldings)) {
-							if (Number(mappedHolding.buyInput.max) > 0) {
-								mappedHolding.buyInput.disabled = false;
-								mappedHolding.buyInput.min = 1;
-							} else {
-								mappedHolding.buyInput.disabled = true;
-								mappedHolding.buyInput.min = 0;
-							}
-							if (Number(mappedHolding.sellInput.max) > 0) {
-								mappedHolding.sellInput.disabled = false;
-								mappedHolding.sellInput.min = 1;
-							} else {
-								mappedHolding.sellInput.disabled = true;
-								mappedHolding.sellInput.min = 0;
-							}
+						sellButton.disabled = false;
+						for (const mappedHolding of allHoldings) {
+							const { buyInput, sellInput } = mappedHolding;
+
+							const buyMax = Number(buyInput.max) > 0;
+							buyInput.disabled = !buyMax;
+							buyInput.min = buyMax ? 1 : 0;
+
+							const sellMax = Number(sellInput.max) > 0;
+							sellInput.disabled = !sellMax;
+							sellInput.min = sellMax ? 1 : 0;
 						}
 					});
 					requestAnimationFrame(() => {
@@ -560,42 +583,50 @@
 			});
 		};
 
-		buyInputs.forEach((input) => {
-			input.addEventListener("input", (event) => {
-				let buySum = 0;
-				let countNaN = 0;
-				buyInputs.forEach((input) => {
-					const price = Number(input.closest("tr").querySelector(".price").dataset.value);
-					const value = Number(input.value) || 0;
-					if (isNaN(input.valueAsNumber)) countNaN += 1;
-					buySum += price * value;
-				});
-				buyTotal.textContent = countNaN === buyInputs.length ? "" : `$${buySum.toFixed(2)}`;
+		const tbody = document.querySelector("table tbody");
 
-				buyInputs.forEach((input) => {
-					const price = Number(input.closest("tr").querySelector(".price").dataset.value);
-					const value = Number(input.value) || 0;
+		tbody.addEventListener("input", (event) => {
+			const target = event.target;
+			if (!target.classList.contains("buy-input")) return;
 
-					const remaining = balance - buySum + price * value;
-					const availableShares = price > 0 ? Math.max(0, Math.floor(remaining / price)) : 0;
-					input.max = availableShares;
-					input.min = availableShares > 0 ? 1 : 0;
-				});
+			let buySum = 0;
+			let countNaN = 0;
+
+			allHoldings.forEach((holding) => {
+				const { priceCell, buyInput } = holding;
+				const price = Number(priceCell.dataset.value);
+				const quantity = Number(buyInput.value) || 0;
+				if (isNaN(buyInput.valueAsNumber)) countNaN += 1;
+				buySum += price * quantity;
+			});
+			buyTotal.textContent = countNaN === allHoldings.length ? "" : `$${buySum.toFixed(2)}`;
+
+			allHoldings.forEach((holding) => {
+				const { priceCell, buyInput } = holding;
+				const price = Number(priceCell.dataset.value);
+				const quantity = Number(buyInput.value) || 0;
+
+				const remaining = balance - buySum + price * quantity;
+				const availableShares = price > 0 ? Math.max(0, Math.floor(remaining / price)) : 0;
+				buyInput.max = availableShares;
+				buyInput.min = availableShares > 0 ? 1 : 0;
 			});
 		});
 
-		sellInputs.forEach((input) => {
-			input.addEventListener("input", (event) => {
-				let sellSum = 0;
-				let countNaN = 0;
-				sellInputs.forEach((input) => {
-					const price = Number(input.closest("tr").querySelector(".price").dataset.value);
-					const value = Number(input.value) || 0;
-					if (isNaN(input.valueAsNumber)) countNaN += 1;
-					sellSum += price * value;
-				});
-				sellTotal.textContent = countNaN === sellInputs.length ? "" : `$${sellSum.toFixed(2)}`;
+		tbody.addEventListener("input", (event) => {
+			const target = event.target;
+			if (!target.classList.contains("sell-input")) return;
+
+			let sellSum = 0;
+			let countNaN = 0;
+			allHoldings.forEach((holding) => {
+				const { priceCell, sellInput } = holding;
+				const price = Number(priceCell.dataset.value);
+				const quantity = Number(sellInput.value) || 0;
+				if (isNaN(sellInput.valueAsNumber)) countNaN += 1;
+				sellSum += price * quantity;
 			});
+			sellTotal.textContent = countNaN === sellInputs.length ? "" : `$${sellSum.toFixed(2)}`;
 		});
 	});
 </script>

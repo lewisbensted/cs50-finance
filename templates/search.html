@@ -196,13 +196,9 @@
 				const availableShares = Math.floor(balance / price);
 				buyInput.max = availableShares;
 
-				if (availableShares > 0) {
-					if (!transactionInProgress) buyInput.disabled = buyButton.disabled = false;
-					buyInput.min = 1;
-				} else {
-					if (!transactionInProgress) buyInput.disabled = buyButton.disabled = true;
-					buyInput.min = 0;
-				}
+				const available = availableShares > 0;
+				if (!transactionInProgress) buyInput.disabled = buyButton.disabled = available ? false : true;
+				buyInput.min = available ? 1 : 0;
 
 				return price;
 			} catch (error) {
@@ -265,7 +261,7 @@
 			transactionInProgress = true;
 			message.textContent = "";
 			const shares = Number(buyInput.value);
-			if (shares < 0 || !Number.isInteger(shares) || !buyInput.checkValidity()) {
+			if (shares < 0 || !Number.isInteger(shares) || (!buyInput.checkValidity() && buyInput.value !== "0")) {
 				message.textContent = "Invalid input - must be a positive integer.";
 				transactionInProgress = false;
 				return;
@@ -284,8 +280,8 @@
 				buySpinner.style.setProperty("display", "flex", "important");
 				buyButton.style.display = "none";
 				document.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
-				const purchase={}
-				purchase[buyForm.symbol.value] = shares
+				const purchase = {};
+				purchase[buyForm.symbol.value] = shares;
 				const res = await fetch("/buy", {
 					method: "POST",
 					headers: {
@@ -322,18 +318,14 @@
 				buySpinner.style.setProperty("display", "none", "important");
 				buyButton.style.display = "";
 				quoteButton.disabled = quoteInput.disabled = false;
-				if (Number(buyInput.max) > 0) {
-					buyInput.disabled = buyButton.disabled = false;
-					buyInput.min = 1;
-				} else {
-					buyInput.min = 0;
-				}
-				if (Number(sellForm.current_shares.value) > 0) {
-					sellInput.disabled = sellButton.disabled = false;
-					sellInput.min = 1;
-				} else {
-					sellInput.min = 0;
-				}
+
+				const buyMax = Number(buyInput.max) > 0;
+				buyInput.disabled = buyButton.disabled = !buyMax;
+				buyInput.min = buyMax ? 1 : 0;
+
+				const sellMax = Number(sellInput.max) > 0;
+				sellInput.disabled = sellButton.disabled = !sellMax;
+				sellInput.min = sellMax ? 1 : 0;
 				transactionInProgress = false;
 			}
 		});
@@ -344,7 +336,7 @@
 			transactionInProgress = true;
 			message.textContent = "";
 			const shares = Number(sellInput.value);
-			if (shares < 0 || !Number.isInteger(shares) || !sellInput.checkValidity()) {
+			if (shares < 0 || !Number.isInteger(shares) || (!sellInput.checkValidity() && sellInput.value !== "0")) {
 				message.textContent = "Invalid input - must be a positive integer.";
 				transactionInProgress = false;
 				return;
@@ -363,8 +355,8 @@
 				sellSpinner.style.setProperty("display", "flex", "important");
 				sellButton.style.display = "none";
 				document.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
-				const sale={}
-				sale[sellForm.symbol.value] = shares
+				const sale = {};
+				sale[sellForm.symbol.value] = shares;
 				const res = await fetch("/sell", {
 					method: "POST",
 					headers: {
@@ -401,18 +393,15 @@
 				sellSpinner.style.setProperty("display", "none", "important");
 				sellButton.style.display = "";
 				quoteButton.disabled = quoteInput.disabled = false;
-				if (Number(buyInput.max) > 0) {
-					buyInput.disabled = buyButton.disabled = false;
-					buyInput.min = 1;
-				} else {
-					buyInput.min = 0;
-				}
-				if (Number(sellForm.current_shares.value) > 0) {
-					sellInput.disabled = sellButton.disabled = false;
-					sellInput.min = 1;
-				} else {
-					sellInput.min = 0;
-				}
+
+				const buyMax = Number(buyInput.max) > 0;
+				buyInput.disabled = buyButton.disabled = !buyMax;
+				buyInput.min = buyMax ? 1 : 0;
+
+				const sellMax = Number(sellInput.max) > 0;
+				sellInput.disabled = sellButton.disabled = !sellMax;
+				sellInput.min = sellMax ? 1 : 0;
+
 				transactionInProgress = false;
 			}
 		});
