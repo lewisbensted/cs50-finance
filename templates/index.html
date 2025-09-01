@@ -93,17 +93,46 @@
 		</tfoot>
 	</table>
 </div>
-<span class="message"></span>
+<div class="message-container">
+	<span class="message"> </span><button class="btn btn-outline-primary btn-sm open-modal">Info</button>
+</div>
+<div class="modal">
+	<div class="modal-content">
+		<span class="close-modal">&times;</span>
+		<h3>Transaction Failures:</h3>
+		<div class="modal-list"></div>
+	</div>
+</div>
 {% else %}
 <span>Error loading holdings</span>
 {% endif %} {% endblock %} {% block script%}
 <script>
 	document.addEventListener("DOMContentLoaded", async () => {
 		const message = document.querySelector(".message");
-		const interval = JSON.parse(localStorage.getItem("interval"));
+		const INTERVAL = JSON.parse(localStorage.getItem("INTERVAL"));
 
 		const balanceCell = document.querySelector(".balance");
 		const totalCell = document.querySelector(".total");
+
+		const modal = document.querySelector(".modal");
+		const openModal = document.querySelector(".open-modal");
+		const closeModal = document.querySelector(".close-modal");
+		const modalContent = document.querySelector(".modal-content");
+		const modalList = document.querySelector(".modal-list");
+
+		openModal.addEventListener("click", () => {
+			modal.style.display = "flex";
+		});
+
+		closeModal.addEventListener("click", () => {
+			modal.style.display = "none";
+		});
+
+		window.addEventListener("click", (event) => {
+			if (event.target === modal) {
+				modal.style.display = "none";
+			}
+		});
 
 		let balance = await fetchBalance();
 		if (balance) {
@@ -158,10 +187,13 @@
 
 		const fetchPrices = async () => {
 			const res = await fetch(url);
-			const data = await res.json().catch((error) => console.error(error));
+			const data = await res.json();
+
 			if (!res.ok) {
 				throw new Error(data && data.error ? data.error : `Error ${res.status}: ${res.statusText}`);
 			}
+
+			if (!data || typeof data !== "object") throw new Error("Missing or invalid data");
 			return data;
 		};
 
@@ -233,7 +265,7 @@
 						sellButton.disabled = false;
 						if (balance && available > 0) buyButton.disabled = false;
 					} else {
-						buyButton.disabled = available === 0;
+						if (!transactionInProgress) buyButton.disabled = available === 0;
 					}
 				});
 			} catch (error) {
@@ -267,16 +299,14 @@
 				buyFormListener();
 				if (priceIntervalId) clearInterval(priceIntervalId);
 				priceIntervalId = setInterval(() => {
-					updatePrices()
-						.then(() => {
-							if (!transactionInProgress) {
-								[firstHolding] = allHoldings;
-								if (buyTotal.textContent) firstHolding.buyInput.dispatchEvent(new Event("input"));
-								if (sellTotal.textContent) firstHolding.sellInput.dispatchEvent(new Event("input"));
-							}
-						})
-						.catch((error) => console.error(error));
-				}, interval);
+					updatePrices().then(() => {
+						if (!transactionInProgress) {
+							[firstHolding] = allHoldings;
+							if (buyTotal.textContent) firstHolding.buyInput.dispatchEvent(new Event("input"));
+							if (sellTotal.textContent) firstHolding.sellInput.dispatchEvent(new Event("input"));
+						}
+					});
+				}, INTERVAL);
 			});
 		} else {
 			message.innerHTML =
@@ -289,6 +319,7 @@
 				if (transactionInProgress) return;
 				transactionInProgress = true;
 				message.textContent = "";
+				openModal.style.display = "";
 				const purchases = {};
 				let purchaseTotal = 0;
 				let invalidInput = false;
@@ -345,11 +376,18 @@
 						body: JSON.stringify(purchases),
 					});
 					const data = await res.json();
-					if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
-					if (!data || !data.updated_balance) throw new Error("Missing data");
 
-					const { successful, failed, updated_balance: updatedBalance } = data;
+					if (!res.ok) {
+						const err = new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
+						err.status = res.status;
+						if (data?.failed?.length) err.failed = data?.failed;
+						throw err;
+					}
+					if (!data || isNaN(Number(data.updated_balance))) throw new Error("Missing or invalid data");
 
+					const { successful, failed, updated_balance } = data;
+
+					const updatedBalance = Number(updated_balance);
 					setBalance(updatedBalance);
 					balance = updatedBalance;
 
@@ -391,7 +429,16 @@
 					const total = calculateTotal();
 
 					DOMupdates.push(() => {
-						message.textContent = "Purchase Successful!";
+						message.textContent = failed?.length ? "Purchase partially successful" : "Purchase Successful!";
+						openModal.style.display = failed?.length ? "block" : "none";
+						modalList.innerHTML = "";
+						if (failed?.length)
+							failed.forEach(({ error, shares, symbol }) => {
+								const p = document.createElement("p");
+								p.textContent = `Symbol: ${symbol}, Quantity: ${shares}, Error: ${error}`;
+								modalList.appendChild(p);
+							});
+
 						balanceCell.style.color = "";
 						balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
 						buyTotal.textContent = sellTotal.textContent = "";
@@ -401,13 +448,25 @@
 					});
 				} catch (error) {
 					console.error(error.message);
-					buyButton.disabled = false;
-					message.textContent = error.message == "Insufficient funds" ? error.message : "Unexpected error";
+					DOMupdates.push(() => {
+						message.textContent = [422, 400].includes(error.status) ? error.message : "Unexpected error";
+						buyButton.disabled = false;
+						if (error.failed?.length) {
+							modalList.innerHTML = "";
+							openModal.style.display = error.failed?.length ? "block" : "none";
+							error.failed.forEach(({ error, shares, symbol }) => {
+								const p = document.createElement("p");
+								p.textContent = `Symbol: ${symbol}, Quantity: ${shares}, Error: ${error}`;
+								modalList.appendChild(p);
+							});
+						}
+					});
 				} finally {
 					DOMupdates.push(() => {
 						buySpinner.style.setProperty("display", "none", "important");
 						buyButton.style.display = "";
 						sellButton.disabled = false;
+						openModal.disabled = false;
 						for (const mappedHolding of allHoldings) {
 							const { buyInput, sellInput } = mappedHolding;
 
@@ -437,6 +496,7 @@
 				transactionInProgress = true;
 				const sales = {};
 				message.textContent = "";
+				openModal.style.display = "";
 				let invalidQuantity = false;
 				let invalidInput = false;
 
@@ -498,11 +558,17 @@
 					});
 					const data = await res.json();
 
-					if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
-					if (!data || !data.updated_balance) throw new Error("Missing data");
+					if (!res.ok) {
+						const err = new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
+						err.status = res.status;
+						if (data?.failed?.length) err.failed = data?.failed;
+						throw err;
+					}
+					if (!data || isNaN(Number(data.updated_balance))) throw new Error("Missing or invalid data");
 
-					const { successful, failed, updated_balance: updatedBalance } = data;
+					const { successful, failed, updated_balance } = data;
 
+					const updatedBalance = Number(updated_balance);
 					setBalance(updatedBalance);
 					balance = updatedBalance;
 
@@ -544,7 +610,15 @@
 					const total = calculateTotal();
 
 					DOMupdates.push(() => {
-						message.textContent = "Sale Successful!";
+						message.textContent = failed?.length ? "Sale partially successful" : "Sale Successful!";
+						openModal.style.display = failed?.length ? "block" : "none";
+						modalList.innerHTML = "";
+						if (failed?.length)
+							failed.forEach(({ error, shares, symbol }) => {
+								const p = document.createElement("p");
+								p.textContent = `Symbol: ${symbol}, Quantity: ${shares}, Error: ${error}`;
+								modalList.appendChild(p);
+							});
 						balanceCell.style.color = "";
 						balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
 						buyTotal.textContent = sellTotal.textContent = "";
@@ -553,14 +627,26 @@
 						buyButton.disabled = available === 0;
 					});
 				} catch (error) {
-					buyButton.disabled = false;
 					console.error(error.message);
-					message.textContent = "Unexpected error";
+					DOMupdates.push(() => {
+						message.textContent = 422 === error.status ? error.message : "Unexpected error";
+						buyButton.disabled = false;
+						if (error.failed?.length) {
+							modalList.innerHTML = "";
+							openModal.style.display = error.failed?.length ? "block" : "none";
+							error.failed.forEach(({ error, shares, symbol }) => {
+								const p = document.createElement("p");
+								p.textContent = `Symbol: ${symbol}, Quantity: ${shares}, Error: ${error}`;
+								modalList.appendChild(p);
+							});
+						}
+					});
 				} finally {
 					DOMupdates.push(() => {
 						sellSpinner.style.setProperty("display", "none", "important");
 						sellButton.style.display = "";
 						sellButton.disabled = false;
+						openModal.disabled = false;
 						for (const mappedHolding of allHoldings) {
 							const { buyInput, sellInput } = mappedHolding;
 
@@ -626,7 +712,7 @@
 				if (isNaN(sellInput.valueAsNumber)) countNaN += 1;
 				sellSum += price * quantity;
 			});
-			sellTotal.textContent = countNaN === sellInputs.length ? "" : `$${sellSum.toFixed(2)}`;
+			sellTotal.textContent = countNaN === allHoldings.length ? "" : `$${sellSum.toFixed(2)}`;
 		});
 	});
 </script>

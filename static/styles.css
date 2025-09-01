@@ -81,3 +81,59 @@ table {
 	z-index: 10;
 }
 
+.open-modal {
+	display: none;
+}
+
+.modal {
+	display: none;
+	position: fixed;
+	inset: 0;
+	z-index: 100;
+	align-items: center;
+	justify-content: center;
+	padding: 2rem;
+	overflow-y: auto;
+}
+
+.modal-content {
+	background: #fff;
+	border-radius: 12px;
+	padding: 2rem;
+	max-width: 500px;
+	width: 100%;
+	max-height: 80vh;
+	overflow-y: auto;
+	position: relative;
+}
+
+.modal-content .close-modal {
+	top: 1rem;
+	right: 1rem;
+	position: absolute;
+	font-size: 1.5rem;
+	font-weight: bold;
+	color: var(--bs-primary);
+	cursor: pointer;
+	line-height: 1;
+	background: none;
+	border: none;
+	z-index: 9999	
+}
+
+.message-container{
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 1rem;
+	margin: 1rem 0
+}
+
+.message-container .btn{
+	font-size: 0.8rem
+}
+
+.message{
+	font-size: 1.3rem;
+}
+

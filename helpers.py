@@ -57,7 +57,7 @@ def validate_transaction(data):
                 {
                     "symbol": symbol,
                     "shares": shares,
-                    "error": "Invalid share - must be a positive integer",
+                    "error": "Shares must be a positive integer",
                 }
             )
             continue

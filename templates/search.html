@@ -96,7 +96,7 @@
 <script>
 	document.addEventListener("DOMContentLoaded", async () => {
 		const message = document.querySelector(".message");
-		const interval = JSON.parse(localStorage.getItem("interval"));
+		const INTERVAL = JSON.parse(localStorage.getItem("INTERVAL"));
 
 		const balanceCell = document.querySelector(".balance");
 
@@ -168,11 +168,13 @@
 		const fetchPrice = async (symbol) => {
 			const res = await fetch(`/prices?symbols=${encodeURIComponent(symbol)}`);
 			const data = await res.json().catch((error) => console.error(error));
-
 			if (!res.ok) {
-				throw new Error(data && data.error ? data.error : `Error ${res.status}: ${res.statusText}`);
+				const error = new Error(data && data.error ? data.error : `Error ${res.status}: ${res.statusText}`);
+				error.status = res.status;
+				throw error;
 			}
-			if (!data || !data[0] || data[0].symbol !== symbol || !data[0].name) throw new Error("Missing data");
+			if (!data || !data[0] || data[0].symbol !== symbol || !data[0].name)
+				throw new Error("Missing or invalid data");
 
 			const price = data[0].price;
 			if (typeof price !== "number" || Number.isNaN(price) || price <= 0) {
@@ -237,18 +239,15 @@
 				if (priceIntervalId) clearInterval(priceIntervalId);
 
 				priceIntervalId = setInterval(() => {
-					updatePrice(shareSymbol)
-						.then(() => {
-							if (!transactionInProgress) {
-								if (buyTotal.textContent) buyInput.dispatchEvent(new Event("input"));
-								if (sellTotal.textContent) sellInput.dispatchEvent(new Event("input"));
-							}
-						})
-						.catch((error) => console.error(error));
-				}, interval);
+					updatePrice(shareSymbol).then(() => {
+						if (!transactionInProgress) {
+							if (buyTotal.textContent) buyInput.dispatchEvent(new Event("input"));
+							if (sellTotal.textContent) sellInput.dispatchEvent(new Event("input"));
+						}
+					});
+				}, INTERVAL);
 			} catch (error) {
-				console.error(error);
-				message.textContent = error.message == "Symbol not found" ? error.message : "Unexpected error";
+				message.textContent = error?.status == 404 ? error?.message : "Unexpected error";
 			} finally {
 				quoteButton.style.display = "";
 				quoteSpinner.style.setProperty("display", "none", "important");
@@ -282,6 +281,7 @@
 				document.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
 				const purchase = {};
 				purchase[buyForm.symbol.value] = shares;
+
 				const res = await fetch("/buy", {
 					method: "POST",
 					headers: {
@@ -290,11 +290,27 @@
 					body: JSON.stringify(purchase),
 				});
 				const data = await res.json();
-				if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
-				if (!data || !data.updated_balance) throw new Error("Missing data");
+
+				if (!res.ok) {
+					let message;
+
+					if (res.status === 422 && data?.failed?.[0]?.error) {
+						message = data.failed[0].error;
+					} else if (data?.error) {
+						message = data.error;
+					} else {
+						message = `Error ${res.status}: ${res.statusText}`;
+					}
+
+					const err = new Error(message);
+					err.status = res.status;
+					throw err;
+				}
+				if (!data || isNaN(Number(data.updated_balance))) throw new Error("Missing or invalid data");
+
+				const updatedBalance = Number(data.updated_balance);
 
 				message.textContent = "Purchase Successful!";
-				const updatedBalance = data.updated_balance;
 				setBalance(updatedBalance);
 				balanceCell.style.color = "";
 				balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
@@ -313,7 +329,7 @@
 				buyTotal.textContent = sellTotal.textContent = "";
 			} catch (error) {
 				console.error(error);
-				message.textContent = error.message == "Insufficient funds" ? error.message : "Unexpected error";
+				message.textContent = [400, 422].includes(error.status) ? error.message : "Unexpected error";
 			} finally {
 				buySpinner.style.setProperty("display", "none", "important");
 				buyButton.style.display = "";
@@ -365,11 +381,24 @@
 					body: JSON.stringify(sale),
 				});
 				const data = await res.json();
-				if (!res.ok) throw new Error(data?.error || `Error ${res.status}: ${res.statusText}`);
-				if (!data || !data.updated_balance) throw new Error("Missing data");
+				if (!res.ok) {
+					let message;
+					if (res.status === 422 && data?.failed?.[0]?.error) {
+						message = data.failed[0].error;
+					} else if (data?.error) {
+						message = data.error;
+					} else {
+						message = `Error ${res.status}: ${res.statusText}`;
+					}
+
+					const err = new Error(message);
+					err.status = res.status;
+					throw err;
+				}
+				if (!data || isNaN(Number(data.updated_balance))) throw new Error("Missing or invalid data");
 
 				message.textContent = "Sale successful!";
-				const updatedBalance = data.updated_balance;
+				const updatedBalance = Number(data.updated_balance);
 				setBalance(updatedBalance);
 				balanceCell.style.color = "";
 				balanceCell.textContent = `$${updatedBalance.toFixed(2)}`;
@@ -387,8 +416,8 @@
 				buyInput.value = sellInput.value = "";
 				buyTotal.textContent = sellTotal.textContent = "";
 			} catch (error) {
-				console.error(error.message);
-				message.textContent = "Unexpected error";
+				console.error(error);
+				message.textContent = 422 === error.status ? error.message : "Unexpected error";
 			} finally {
 				sellSpinner.style.setProperty("display", "none", "important");
 				sellButton.style.display = "";

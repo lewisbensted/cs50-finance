@@ -314,7 +314,6 @@ def sell():
             )
 
     except NotFoundError as e:
-        db.rollback()
         return jsonify({"error": str(e)}), 404
     except Exception as e:
         db.rollback()
